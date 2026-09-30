@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "egyptian-civil-rag-project"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb>=1.5.9",
+    "dvc[s3]>=3.67.1",
+    "fastapi>=0.141.1",
+    "google-genai>=2.25.0",
+    "langchain>=1.4.2",
+    "langchain-chroma>=1.1.0",
+    "langchain-community>=0.4.2",
+    "langchain-google-genai>=4.4.0",
+    "langchain-groq>=1.1.3",
+    "langchain-huggingface>=1.2.2",
+    "langchain-text-splitters>=1.1.2",
+    # MLflow: experiment tracking + model registry for the
+    # experiments/mlflow workflow (runs, parameters, metrics, artifacts,
+    # registered model versions and aliases).
+    "mlflow>=3.16",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    # PyMuPDF: coordinate-level PDF extraction.
+    # Required for the dual-column Arabic/English column split (block/word
+    # bounding boxes); pypdf alone cannot provide reliable geometry.
+    "pymupdf>=1.24.0",
+    "pypdf>=6.19.0",
+    "python-dotenv>=1.2.3",
+    "pyyaml>=6.0.3",
+    "sentence-transformers>=6.1.0",
+    "uvicorn[standard]>=0.53.0",
+]
+
+# Development-only tools (test runner for the test suite).
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+# Optional Faithfulness backend for the MLflow experiment evaluator.
+#
+# NOTE (verified in this environment): ragas 0.4.3 cannot be imported
+# alongside langchain-community 0.4.2 because it imports
+# langchain_community.chat_models.vertexai, a module that no longer
+# exists there. Fixing that would require downgrading the project's
+# LangChain stack, so RAGAS is offered as an extra instead of a hard
+# dependency, and rag_project/evaluation/faithfulness.py uses its
+# built-in claim-verification judge by default. Install this extra only
+# in an environment where RAGAS imports cleanly:
+#     uv sync --extra ragas
+# and then set evaluation.backend: ragas in experiment_config.yaml.
+[project.optional-dependencies]
+ragas = [
+    "ragas>=0.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
