@@ -1,0 +1,19 @@
+schema: '2.0'
+stages:
+  extract:
+    cmd: uv run python scripts\extract_data.py
+    deps:
+    - path: data/raw/
+      hash: md5
+      md5: b8139b75963ff2e6387cc9c6b59cbbf2.dir
+      size: 2599822
+      nfiles: 3
+    - path: scripts\extract_data.py
+      hash: md5
+      md5: 2cf25fe54ffdde8a0c4459e61e4ad87c
+      size: 20112
+    outs:
+    - path: data/processed/articles.json
+      hash: md5
+      md5: 800d7d024f853bc9874232eb786a925c
+      size: 1131557
