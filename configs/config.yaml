@@ -1,0 +1,61 @@
+# ==========================================================
+# Central configuration for the Egyptian Civil Code RAG project
+# ----------------------------------------------------------
+# All configurable values / hyperparameters live here. Modules
+# load their values from this file through
+# rag_project/config/settings.py instead of hard-coding them.
+# ==========================================================
+
+# --------------------------
+# Chunking (RecursiveCharacterTextSplitter)
+# --------------------------
+chunking:
+  chunk_size: 1000
+  chunk_overlap: 200
+
+# --------------------------
+# Embedding model
+# --------------------------
+embedding:
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  # "auto" -> use CUDA when available, otherwise CPU
+  device: auto
+  normalize_embeddings: true
+
+# --------------------------
+# Vector database
+# --------------------------
+vector_db:
+  type: chroma
+  # Persisted index directory (relative to the project root)
+  persist_directory: artifacts/vector_store
+  collection_name: egyptian_civil_code
+
+# --------------------------
+# Retrieval
+# --------------------------
+retrieval:
+  search_type: similarity
+  top_k: 7
+
+# --------------------------
+# Generation (LLM)
+# --------------------------
+generation:
+  # Model that produces the RAG answer (question + retrieved context).
+  # Google Gemini; the API key is GEMINAI_API_KEY (see .env).
+  model: gemini/gemini-3.1-flash-lite
+  # Model that judges Faithfulness (answer + retrieved contexts).
+  # Same Gemini model and same key as the generator; the judge keeps its
+  # own model entry so both roles stay visible in MLflow.
+  judge_model: gemini/gemini-3.1-flash-lite
+  # Lower temperature = more factual / deterministic answers.
+  temperature: 0
+  judge_temperature: 0
+
+# --------------------------
+# Data paths
+# --------------------------
+data:
+  # Structured articles produced by the ingestion stage
+  articles_json: data/processed/articles.json

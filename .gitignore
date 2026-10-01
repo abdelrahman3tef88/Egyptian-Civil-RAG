@@ -30,10 +30,13 @@ htmlcov/
 *.pdf
 
 # Data: keep directory structure only, never commit contents
-data/raw/*
-data/processed/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
+#data/raw/*
+#data/processed/*
+#!data/raw/.gitkeep
+#!data/processed/.gitkeep
+# Data: actual data files are managed by DVC
+data/raw/*.pdf
+data/processed/*.json
 
 # Generated runtime/indexing artifacts
 artifacts/vector_store/*

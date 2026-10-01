@@ -1,0 +1,204 @@
+# ==========================================================
+# MLflow experiment search space
+# ----------------------------------------------------------
+# This file defines the EXPERIMENT only. It is deliberately NOT
+# the production configuration: configs/config.yaml is never
+# touched by the experiment runner. Only after explicit approval
+# are the winning values copied into configs/config.yaml.
+#
+# The current phase compares exactly TWO dimensions:
+#   chunking (chunk_size + chunk_overlap together)  x  embedding model
+# 4 x 3 = 12 MLflow runs.
+# ==========================================================
+
+experiment:
+  # MLflow experiment that groups the 12 runs.
+  name: egyptian-civil-law-chunking-embedding
+  # Tracking URI.
+  #   ""                        -> use MLFLOW_TRACKING_URI when set,
+  #                                otherwise the local SQLite store
+  #                                (sqlite:///<project>/mlflow.db).
+  #   "http://localhost:5000"   -> use a running MLflow server.
+  # (The classic ./mlruns filesystem backend is refused by MLflow 3.x
+  # unless MLFLOW_ALLOW_FILE_STORE=true, which is why SQLite is the
+  # local default.)
+  tracking_uri: ""
+  # Optional explicit artifact root inside the tracking store.
+  # Empty -> MLflow default.
+  artifact_location: ""
+
+# --------------------------
+# Golden dataset (evaluator-side only)
+# --------------------------
+golden_dataset:
+  # Path is project-relative, like every other path in this project.
+  path: data/golden/golden_dataset.json
+  # Version label logged to MLflow for reproducibility.
+  version: "golden-v1"
+
+# --------------------------
+# Dimension 1: chunking
+# --------------------------
+# chunk_size and chunk_overlap are ALWAYS varied together as one
+# configuration - the 4 entries below are the 4 experiment arms.
+chunking:
+  configurations:
+    - chunk_size: 256
+      chunk_overlap: 25
+    - chunk_size: 384
+      chunk_overlap: 50
+    - chunk_size: 512
+      chunk_overlap: 75
+    - chunk_size: 768
+      chunk_overlap: 100
+
+# --------------------------
+# Dimension 2: embedding model
+# --------------------------
+# Exactly THREE embedding models, and ALL of them must be bilingual
+# (Arabic + English), because the corpus is a bilingual Egyptian Civil
+# Code and the questions in the golden dataset are Arabic (and English).
+#
+# Audit corrections applied to this section:
+#   * sentence-transformers/all-MiniLM-L6-v2 was REMOVED. It is an
+#     English-only sentence-embedding model (trained on English data)
+#     and cannot serve Arabic retrieval, so it must not be one of the
+#     three compared models. It stays in configs/config.yaml (the
+#     production configuration, which this experiment never modifies);
+#     it is simply no longer part of this experiment's matrix.
+#   * intfloat/multilingual-e5-small replaces it: the same bilingual
+#     family as e5-base, 384 dimensions, ~118M parameters, and it loads
+#     locally through sentence-transformers with no trust_remote_code.
+#
+# Per-model metadata recorded so each run is reproducible and so the
+# runner can validate the models before spending any money/time:
+#   dimension  : the model's real output dimensionality
+#   multilingual / languages : the bilingual check the runner enforces
+#   expects_query_passage_prefixes : documented for transparency only
+embedding:
+  models:
+    - name: BAAI/bge-m3
+      dimension: 1024
+      multilingual: true
+      languages:
+        - ar
+        - en
+      expects_query_passage_prefixes: false
+      notes: "multilingual dense retriever (XLM-RoBERTa-large class); Arabic + English"
+
+    - name: intfloat/multilingual-e5-base
+      dimension: 768
+      multilingual: true
+      languages:
+        - ar
+        - en
+      expects_query_passage_prefixes: true
+      notes: "multilingual dense retriever; Arabic + English; 768-dimension model"
+
+    - name: intfloat/multilingual-e5-small
+      dimension: 384
+      multilingual: true
+      languages:
+        - ar
+        - en
+      expects_query_passage_prefixes: true
+      notes: "multilingual dense retriever; Arabic + English; ~118M parameters (smallest arm)"
+
+  # NOTE on expects_query_passage_prefixes: the e5 family is trained with
+  # "query: " / "passage: " prefixes, and the runner does NOT add them
+  # today. It is recorded here so the caveat is visible. All three arms
+  # are treated identically, so the comparison stays controlled; adding
+  # prefixes is a separate, explicit change.
+  device: auto
+  normalize_embeddings: true
+
+# --------------------------
+# UNRESOLVED REQUIREMENT: the "G9" embedding configuration
+# --------------------------
+# The original specification asked for a "G9" embedding configuration
+# with dimension = 768 and alpha = 24.
+#
+# STATUS: UNRESOLVED - no such identifier exists in this repository.
+# The only occurrences of "G9" or "alpha" anywhere in the project are
+# the lines of this comment itself. That was verified across configs/,
+# src/, scripts/, experiments/, tests/, notebooks/, pyproject.toml,
+# README.md, README_D1.md and the reference notebook: no model, config
+# key, table or document defines "G9" or an "alpha" parameter.
+#
+# CONSEQUENCES (deliberate):
+#   * No model in this file is labelled "G9" and no model name is
+#     invented to stand in for it.
+#   * intfloat/multilingual-e5-base is described by its REAL identity: a
+#     multilingual model with 768 dimensions. "768 dimensions" is NOT the
+#     same claim as "G9", and the two are never conflated here.
+#   * The requirement stays open until whoever owns the specification
+#     supplies the real G9 model identifier (and what "alpha = 24" means).
+
+
+# --------------------------
+# Retrieval (FIXED - not an experiment dimension)
+# --------------------------
+# These MUST match configs/config.yaml. search_type is similarity
+# only; MMR is deliberately NOT part of this experiment phase, and
+# top_k keeps the project's existing value (configs/config.yaml:
+# retrieval.top_k = 7). The runner loads configs/config.yaml, asserts
+# equality with the values below, and logs them as MLflow parameters.
+retrieval:
+  search_type: similarity
+  top_k: 7
+
+# --------------------------
+# Evaluation (single metric)
+# --------------------------
+evaluation:
+  # Faithfulness is the ONLY metric in this phase. Nothing else is
+  # computed as a score: no precision, recall, F1, context precision /
+  # recall, answer relevancy, MRR, NDCG, latency or cost.
+  metric: faithfulness
+
+  # Faithfulness backend. The metric is ALWAYS named "faithfulness" in
+  # MLflow; the backend below decides HOW it is computed, and the value
+  # actually used is recorded per run (MLflow param
+  # "faithfulness_evaluator" + the run artifacts) so no score is ever
+  # mislabelled:
+  #   "builtin" -> the project's own LLM-based Faithfulness: the answer is
+  #                decomposed into atomic claims and every claim is
+  #                verified against the retrieved contexts
+  #                (rag_project/evaluation/faithfulness.py). This is the
+  #                ACTIVE implementation and the default. It is reported
+  #                as "LLM-based Faithfulness", NOT as RAGAS.
+  #   "ragas"   -> the RAGAS Faithfulness metric. OPTIONAL ONLY: in this
+  #                environment ragas cannot even be imported (see
+  #                pyproject.toml), so this path falls back to the
+  #                built-in judge and says so in the run's records.
+  backend: builtin
+  # Judge settings for the built-in backend.
+  max_claims: 25
+  judge_temperature: 0
+
+
+# --------------------------
+# Execution / caching
+# --------------------------
+execution:
+  # One isolated Chroma index per (embedding model, chunk_size, overlap)
+  # so a run can never query an index built by another configuration.
+  # Marked with a JSON sidecar holding the exact configuration it was
+  # built with, and re-verified on every load.
+  index_cache_dir: artifacts/experiment_indexes
+  # Rebuild the index even when a cached one exists.
+  rebuild_indexes: false
+  # Reports root for this experiment phase.
+  reports_dir: reports/mlflow
+
+# --------------------------
+# MLflow Model Registry
+# --------------------------
+registry:
+  # Name the selected configuration is registered under. The scope of
+  # the selected configuration is chunking + embedding (with the fixed
+  # retrieval settings recorded alongside), so the model name reflects
+  # that scope.
+  model_name: EgyptianCivilLawChunkingConfig
+  # Alias assigned to the newly registered version.
+  champion_alias: champion

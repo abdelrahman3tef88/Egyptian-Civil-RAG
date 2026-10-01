@@ -1,0 +1,5 @@
+[core]
+    remote = storj
+['remote "storj"']
+    url = s3://egyptian-civil-rag-dvc/dvc-store
+    endpointurl = https://gateway.storjshare.io
