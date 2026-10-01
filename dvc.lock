@@ -17,3 +17,24 @@ stages:
       hash: md5
       md5: 800d7d024f853bc9874232eb786a925c
       size: 1131557
+  index:
+    cmd: uv run python scripts\build_index.py
+    deps:
+    - path: configs/config.yaml
+      hash: md5
+      md5: e17631c288bdafc360d3ffd6e8f6b7c6
+      size: 2022
+    - path: data/processed/articles.json
+      hash: md5
+      md5: 800d7d024f853bc9874232eb786a925c
+      size: 1131557
+    - path: scripts\build_index.py
+      hash: md5
+      md5: d8880cfbaf2be57aedf229bd6720f0bf
+      size: 1571
+    outs:
+    - path: artifacts/vector_store/
+      hash: md5
+      md5: fb878e9137a715c5ba71c996e9b6e74e.dir
+      size: 19163688
+      nfiles: 6
