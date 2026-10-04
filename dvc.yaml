@@ -1,18 +1,18 @@
 stages:
 
   extract:
-    cmd: uv run python scripts\extract_data.py
+    cmd: uv run python scripts/extract_data.py
     deps:
       - data/raw/
-      - scripts\extract_data.py
+      - scripts/extract_data.py
     outs:
       - data/processed/articles.json
 
   index:
-    cmd: uv run python scripts\build_index.py
+    cmd: uv run python scripts/build_index.py
     deps:
       - data/processed/articles.json
-      - scripts\build_index.py
+      - scripts/build_index.py
       - configs/config.yaml
     outs:
       - artifacts/vector_store/
