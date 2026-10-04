@@ -46,7 +46,7 @@ def google_model_id(model_name):
     model_id = str(model_name).strip()
     for prefix in ("gemini/", "models/"):
         if model_id.lower().startswith(prefix):
-            model_id = model_id[len(prefix):]
+            model_id = model_id[len(prefix) :]
             break
     if not model_id:
         raise SystemExit("configs/config.yaml: generation.model is empty.")
@@ -63,7 +63,6 @@ def create_llm():
         # Lower temperature = more factual answers (from the config)
         temperature=CONFIG["temperature"],
     )
-
 
 
 # ==========================================================
@@ -92,4 +91,3 @@ def create_judge_llm():
         # The judge must be deterministic, like the generation model.
         temperature=CONFIG.get("judge_temperature", CONFIG["temperature"]),
     )
-

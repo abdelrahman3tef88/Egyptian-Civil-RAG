@@ -13,7 +13,7 @@ script:
   4. logs parameters, the faithfulness metric, and the run artifacts to
      MLflow.
 
-4 chunking configurations x 3 embedding models = 12 MLflow runs, all
+3 chunking configurations x 3 embedding models = 9 MLflow runs, all
 generated programmatically from experiments/mlflow/experiment_config.yaml.
 
 The production configuration (configs/config.yaml) is NEVER modified: the
@@ -52,8 +52,11 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: E40
 
 from rag_project.config import settings  # noqa: E402
 from rag_project.evaluation import faithfulness as faithfulness_module  # noqa: E402
+from rag_project.evaluation.faithfulness import DEFAULT_BACKEND  # noqa: E402
+from rag_project.evaluation.faithfulness import REFUSAL_SENTINEL  # noqa: E402
 from rag_project.generation import chain as chain_module  # noqa: E402
 from rag_project.generation import llm as llm_module  # noqa: E402
+from rag_project.generation.chain import format_docs  # noqa: E402
 from rag_project.generation.prompts import prompt as rag_prompt  # noqa: E402
 from rag_project.indexing import chunking, embeddings, vector_store  # noqa: E402
 from rag_project.retrieval import retriever as retriever_module  # noqa: E402
@@ -66,7 +69,9 @@ INDEX_MARKER = "index_config.json"
 # ----------------------------------------------------------
 # The experiment compares chunking x embedding and nothing else.
 EXPECTED_EMBEDDING_MODELS = 3
-EXPECTED_CHUNKING_CONFIGS = 4
+# 3 chunking arms x 3 embedding models = 9 runs (see the chunking section
+# of experiment_config.yaml for why one chunking arm was excluded).
+EXPECTED_CHUNKING_CONFIGS = 3
 
 # Languages every compared embedding model must handle: the corpus is a
 # bilingual Egyptian Civil Code and the golden questions are Arabic/English.
@@ -93,9 +98,6 @@ ENGLISH_ONLY_MODELS = {
 
 # Faithfulness is the only metric of this phase; nothing else is allowed.
 ALLOWED_METRICS = {"faithfulness"}
-
-
-
 
 
 # ==========================================================
@@ -440,7 +442,6 @@ def uses_query_passage_prefixes(config, model_name):
     )
 
 
-
 def create_experiment_embeddings(model_name, config):
     """Embedding model for one arm.
 
@@ -461,9 +462,7 @@ def create_experiment_embeddings(model_name, config):
             )
         },
         encode_kwargs={
-            "normalize_embeddings": embedding_config.get(
-                "normalize_embeddings", True
-            )
+            "normalize_embeddings": embedding_config.get("normalize_embeddings", True)
         },
     )
 
@@ -472,7 +471,6 @@ def create_experiment_embeddings(model_name, config):
         return PrefixedEmbeddings(base_embeddings)
 
     return RawEmbeddings(base_embeddings)
-
 
 
 def index_directory(config, combination):
@@ -515,7 +513,6 @@ def marker_matches(directory, combination, config=None):
             return False
 
     return True
-
 
 
 def verify_embedding_dimension(embedding_model, expected_dimension, model_name):
@@ -599,7 +596,6 @@ def load_or_build_index(config, combination, rebuild=False):
             config, combination["embedding_model"]
         ),
         "chunk_size": combination["chunk_size"],
-
         "chunk_overlap": combination["chunk_overlap"],
         "chunk_count": len(chunks),
         "document_count": len(documents),
@@ -612,7 +608,6 @@ def load_or_build_index(config, combination, rebuild=False):
     return store, embedding_model, False, actual_dimension
 
 
-
 # ==========================================================
 # Evaluation loop
 # ==========================================================
@@ -623,12 +618,15 @@ def evaluate_questions(rag_chain, retriever, questions, llm, config, limit=None)
     ground truth, the relevant article numbers and the ground-truth
     contexts never leave this function - they are evaluator-side data.
     """
-    backend = config["evaluation"].get("backend", "builtin")
+    backend = config["evaluation"].get("backend") or DEFAULT_BACKEND
     max_claims = int(config["evaluation"].get("max_claims", 25))
     selected = questions[:limit] if limit else questions
 
     results = []
     contexts_by_question = {}
+    # Counted here, per generated answer, so the summary can report how
+    # often the pipeline refused instead of only its faithfulness score.
+    refusal_count = 0
     for record in selected:
         question = record["question"]
 
@@ -636,13 +634,25 @@ def evaluate_questions(rag_chain, retriever, questions, llm, config, limit=None)
         # 1) + 2) the project's chain retrieves the context and generates
         #    the answer from the question alone.
         answer = rag_chain.invoke(question)
+        # An honest refusal is the prompt's exact sentinel sentence. It is
+        # counted (never filtered or altered) because a refusal asserts
+        # nothing and therefore scores well on Faithfulness while proving
+        # nothing about grounding.
+        is_refusal = REFUSAL_SENTINEL.strip().lower() in str(answer).strip().lower()
+        if is_refusal:
+            refusal_count += 1
         # The project's chain returns only the answer text, so the
         # retrieved documents are fetched again here - the alternative
         # would be modifying the project's chain, which is out of scope.
         documents = retriever.invoke(question)
         elapsed = time.perf_counter() - started
 
-        contexts = [document.page_content for document in documents]
+        # The judge MUST score the answer against exactly the context the
+        # generator saw. Build it with the project's own format_docs()
+        # (which carries each chunk's "Article N:" label) instead of raw
+        # page_content, otherwise the judge would be checking the answer
+        # against a context the generator never received.
+        contexts = [format_docs(documents)]
         # Kept for the retrieved_contexts.json artifact.
         contexts_by_question[record["id"]] = contexts
 
@@ -667,6 +677,8 @@ def evaluate_questions(rag_chain, retriever, questions, llm, config, limit=None)
                 # Evaluator-side reference (never sent to the pipeline).
                 "ground_truth_articles": record.get("relevant_articles"),
                 "answer": answer,
+                # Diagnostics kept in the artifacts (not logged as metrics).
+                "is_refusal": is_refusal,
                 "faithfulness": score.score,
                 "faithfulness_backend": score.backend,
                 "n_claims": score.n_claims,
@@ -674,8 +686,7 @@ def evaluate_questions(rag_chain, retriever, questions, llm, config, limit=None)
                 "claim_verdicts": score.claims,
                 # Diagnostics kept in the artifacts (not logged as metrics).
                 "retrieved_article_numbers": [
-                    document.metadata.get("article_number")
-                    for document in documents
+                    document.metadata.get("article_number") for document in documents
                 ],
                 "answer_seconds": round(elapsed, 3),
             }
@@ -692,10 +703,25 @@ def summarise(results, combination, dataset_version, reused_index, chunk_count):
     backends = sorted({result["faithfulness_backend"] for result in results})
     # The honest, human-readable name of the metric that was computed.
     evaluator = faithfulness_module.faithfulness_label(backends[0])
+
+    # How often the pipeline refused. A refusal asserts nothing, so it
+    # scores well on Faithfulness without proving any grounding; the
+    # answer_rate is reported next to the score so the two are read
+    # together and never one in isolation of the other.
+    questions_evaluated = len(results)
+    refusal_count = sum(1 for result in results if result.get("is_refusal"))
+    answer_rate = (
+        (questions_evaluated - refusal_count) / questions_evaluated
+        if questions_evaluated
+        else 0.0
+    )
+
     return {
         "faithfulness": faithfulness,
         "faithfulness_metric_name": evaluator,
-        "questions_evaluated": len(results),
+        "questions_evaluated": questions_evaluated,
+        "refusal_count": refusal_count,
+        "answer_rate": answer_rate,
         "faithfulness_backend": ", ".join(backends),
         "embedding_model": combination["embedding_model"],
         "embedding_dimension": combination["embedding_dimension"],
@@ -705,7 +731,6 @@ def summarise(results, combination, dataset_version, reused_index, chunk_count):
         "index_reused": reused_index,
         "indexed_chunks": chunk_count,
     }
-
 
 
 # ==========================================================
@@ -730,7 +755,6 @@ def run_single_experiment(
     reports_root = settings.resolve_path(reports_root)
     evaluation_dir = reports_root / "evaluation_results"
     artifacts_dir = reports_root / "artifacts" / slug
-
 
     # 1) Isolated index for this exact configuration.
     store, _embedding_model, reused, actual_dimension = load_or_build_index(
@@ -758,9 +782,7 @@ def run_single_experiment(
         limit=max_questions,
     )
 
-    summary = summarise(
-        results, combination, dataset_version, reused, chunk_count
-    )
+    summary = summarise(results, combination, dataset_version, reused, chunk_count)
 
     # 4) Local artifacts (kept inspectable even without an MLflow server).
     evaluation_path = evaluation_dir / f"{slug}.json"
@@ -781,6 +803,8 @@ def run_single_experiment(
             "golden_dataset_version": dataset_version,
             "faithfulness": summary["faithfulness"],
             "questions_evaluated": summary["questions_evaluated"],
+            "refusal_count": summary["refusal_count"],
+            "answer_rate": summary["answer_rate"],
             "results": results,
         },
     )
@@ -807,14 +831,12 @@ def run_single_experiment(
         "generation_model": runtime["generation_model"],
         "faithfulness_judge_model": runtime["faithfulness_judge_model"],
         "experiment_name": runtime["experiment_name"],
-
         # Which Faithfulness implementation actually produced the score,
         # so a score is never mislabelled (e.g. as RAGAS when it is not).
         "faithfulness_evaluator": summary["faithfulness_metric_name"],
         "faithfulness_backend": summary["faithfulness_backend"],
         "evaluation_metric": config["evaluation"].get("metric", "faithfulness"),
     }
-
 
     with mlflow.start_run(run_name=slug) as active_run:
         mlflow.log_params(params)
@@ -830,6 +852,10 @@ def run_single_experiment(
         mlflow.log_metric("faithfulness", summary["faithfulness"])
         # Naturally available execution information (not an evaluation metric).
         mlflow.log_metric("questions_evaluated", summary["questions_evaluated"])
+        # Execution information too: a refusal is not unfaithfulness, so these
+        # two must never be read as if they were part of the score.
+        mlflow.log_metric("refusal_count", summary["refusal_count"])
+        mlflow.log_metric("answer_rate", summary["answer_rate"])
 
         mlflow.log_artifact(str(evaluation_path), artifact_path="evaluation_results")
         mlflow.log_artifact(str(summary_path), artifact_path="artifacts")
@@ -907,7 +933,10 @@ def print_matrix(combinations, questions, dataset_version, search_type, top_k, m
             f"  - {model['name']:<40} dim={model['dimension']:<6} "
             f"multilingual={str(model.get('multilingual')).lower()}"
         )
-    print(f"Chunking configs      : 4 (chunk_size + chunk_overlap always paired)")
+    print(
+        f"Chunking configs      : {EXPECTED_CHUNKING_CONFIGS} "
+        "(chunk_size + chunk_overlap always paired)"
+    )
     print(f"Total runs            : {len(combinations)}")
     print("-" * 92)
     print(
@@ -923,7 +952,6 @@ def print_matrix(combinations, questions, dataset_version, search_type, top_k, m
             f"{search_type:>10} {top_k:>6}"
         )
     print("=" * 92)
-
 
 
 def main(argv=None):
@@ -1013,7 +1041,6 @@ def main(argv=None):
         "experiment_name": experiment_name,
     }
 
-
     print(f"MLflow tracking URI   : {mlflow.get_tracking_uri()}")
     print(f"MLflow experiment     : {experiment_name}")
 
@@ -1054,6 +1081,8 @@ def main(argv=None):
             f"  faithfulness={summary['faithfulness']:.4f} | "
             f"questions={summary['questions_evaluated']} | "
             f"chunks={summary['indexed_chunks']} | "
+            f"refusals={summary['refusal_count']}/{summary['questions_evaluated']} | "
+            f"answer_rate={summary['answer_rate']:.4f} | "
             f"index_reused={summary['index_reused']} | "
             f"run_id={summary['run_id']}",
             flush=True,
@@ -1063,7 +1092,10 @@ def main(argv=None):
     print("\n" + "=" * 78)
     print("EXPERIMENT RESULTS (sorted by faithfulness)")
     print("=" * 78)
-    print(f"{'embedding_model':<44} {'size':>6} {'overlap':>8} {'faithfulness':>13}")
+    print(
+        f"{'embedding_model':<44} {'size':>6} {'overlap':>8} {'faithfulness':>13}"
+        f" {'refusals':>9} {'answer_rate':>11}"
+    )
     print("-" * 78)
     ranked = sorted(
         summaries,
@@ -1076,9 +1108,13 @@ def main(argv=None):
     for summary in ranked:
         score = summary["faithfulness"]
         score_text = f"{score:.4f}" if isinstance(score, float) else "FAILED"
+        refusals = summary.get("refusal_count", 0)
+        answered = summary.get("questions_evaluated", 0)
+        rate = summary.get("answer_rate", 0.0)
         print(
             f"{summary['embedding_model']:<44} {summary['chunk_size']:>6} "
-            f"{summary['chunk_overlap']:>8} {score_text:>13}"
+            f"{summary['chunk_overlap']:>8} {score_text:>13} "
+            f"{refusals:>4}/{answered:<4} {rate:>11.4f}"
         )
     print("=" * 78)
     print("Next step: uv run python experiments/mlflow/promote_best_config.py")
@@ -1087,9 +1123,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-
-
-
-

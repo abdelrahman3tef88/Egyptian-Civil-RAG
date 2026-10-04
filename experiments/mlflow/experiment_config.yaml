@@ -8,11 +8,11 @@
 #
 # The current phase compares exactly TWO dimensions:
 #   chunking (chunk_size + chunk_overlap together)  x  embedding model
-# 4 x 3 = 12 MLflow runs.
+# 3 x 3 = 9 MLflow runs.
 # ==========================================================
 
 experiment:
-  # MLflow experiment that groups the 12 runs.
+  # MLflow experiment that groups the 9 runs.
   name: egyptian-civil-law-chunking-embedding
   # Tracking URI.
   #   ""                        -> use MLFLOW_TRACKING_URI when set,
@@ -40,7 +40,23 @@ golden_dataset:
 # Dimension 1: chunking
 # --------------------------
 # chunk_size and chunk_overlap are ALWAYS varied together as one
-# configuration - the 4 entries below are the 4 experiment arms.
+# configuration - the 3 entries below are the 3 experiment arms.
+#
+# This list previously held FOUR arms (256/25, 384/50, 512/75, 768/100),
+# which produced 4 x 3 = 12 runs. The 768/100 arm is excluded now, so the
+# experiment runs 3 x 3 = 9 configurations:
+#
+#   chunking  : 3 arms   (256/25, 384/50, 512/75)
+#   embedding : 3 models (bge-m3, e5-base, e5-small)
+#   -> 9 runs
+#
+# Why an arm of chunking (and not of embedding): removing one chunking
+# entry keeps the embedding comparison perfectly balanced - every model
+# is still measured at every chunk size. Removing an embedding model
+# instead would leave the model comparison unbalanced and would distort
+# the very comparison this experiment exists to make. Re-add the
+# 768/100 entry below to return to 12 runs.
+
 chunking:
   configurations:
     - chunk_size: 256
@@ -49,8 +65,20 @@ chunking:
       chunk_overlap: 50
     - chunk_size: 512
       chunk_overlap: 75
-    - chunk_size: 768
-      chunk_overlap: 100
+
+#chunking:
+ # configurations:
+    #- chunk_size: 350
+    #  chunk_overlap: 50
+  #  - chunk_size: 400
+   #   chunk_overlap: 50
+    #- chunk_size: 400
+     # chunk_overlap: 75
+    #- chunk_size: 460
+     # chunk_overlap: 75
+    #- chunk_size: 600
+     # chunk_overlap: 100
+
 
 # --------------------------
 # Dimension 2: embedding model
@@ -161,18 +189,17 @@ evaluation:
   # actually used is recorded per run (MLflow param
   # "faithfulness_evaluator" + the run artifacts) so no score is ever
   # mislabelled:
-  #   "builtin" -> the project's own LLM-based Faithfulness: the answer is
-  #                decomposed into atomic claims and every claim is
-  #                verified against the retrieved contexts
-  #                (rag_project/evaluation/faithfulness.py). This is the
-  #                ACTIVE implementation and the default. It is reported
-  #                as "LLM-based Faithfulness", NOT as RAGAS.
-  #   "ragas"   -> the RAGAS Faithfulness metric. OPTIONAL ONLY: in this
-  #                environment ragas cannot even be imported (see
-  #                pyproject.toml), so this path falls back to the
-  #                built-in judge and says so in the run's records.
-  backend: builtin
-  # Judge settings for the built-in backend.
+  #   "ragas"   -> ACTIVE. The real RAGAS `Faithfulness` metric
+  #                (ragas.metrics.collections.Faithfulness) scored by the
+  #                project's existing Gemini judge through RAGAS'
+  #                LangchainLLMWrapper. RAGAS decomposes the answer into
+  #                claims and checks each against the retrieved contexts.
+  #                RAGAS errors are fatal: this experiment never falls
+  #                back to the built-in judge.
+  #   "builtin" -> the project's own claim-decomposition judge. Kept only
+  #                as an explicit opt-in for debugging; NOT used here.
+  backend: ragas
+  # Settings for the built-in judge (unused while backend = ragas).
   max_claims: 25
   judge_temperature: 0
 

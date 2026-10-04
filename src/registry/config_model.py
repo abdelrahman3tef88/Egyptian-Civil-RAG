@@ -88,22 +88,24 @@ class ChunkingConfigModel(PythonModel):
         """
         return self.config
 
-
     def summary(self):
         """Human-readable one-line summary of the registered setup."""
         return (
             "embedding_model={embedding_model} | chunk_size={chunk_size} | "
             "chunk_overlap={chunk_overlap} | search_type={search_type} | "
-            "top_k={top_k} | faithfulness={faithfulness}".format(**{
-                key: self.config.get(key) for key in (
-                    "embedding_model",
-                    "chunk_size",
-                    "chunk_overlap",
-                    "search_type",
-                    "top_k",
-                    "faithfulness",
-                )
-            })
+            "top_k={top_k} | faithfulness={faithfulness}".format(
+                **{
+                    key: self.config.get(key)
+                    for key in (
+                        "embedding_model",
+                        "chunk_size",
+                        "chunk_overlap",
+                        "search_type",
+                        "top_k",
+                        "faithfulness",
+                    )
+                }
+            )
         )
 
 

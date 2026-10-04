@@ -10,14 +10,14 @@
 # Chunking (RecursiveCharacterTextSplitter)
 # --------------------------
 chunking:
-  chunk_size: 1000
-  chunk_overlap: 200
+  chunk_size: 384
+  chunk_overlap: 50
 
 # --------------------------
 # Embedding model
 # --------------------------
 embedding:
-  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  embedding_model: BAAI/bge-m3
   # "auto" -> use CUDA when available, otherwise CPU
   device: auto
   normalize_embeddings: true

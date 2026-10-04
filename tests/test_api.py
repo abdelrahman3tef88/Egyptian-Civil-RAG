@@ -20,11 +20,8 @@ client = TestClient(app)
 
 requires_ready = pytest.mark.skipif(
     not (os.getenv(llm.GENERATION_API_KEY_VARIABLE) and vector_store.index_exists()),
-    reason=(
-        f"{llm.GENERATION_API_KEY_VARIABLE} and a built Chroma index are required"
-    ),
+    reason=(f"{llm.GENERATION_API_KEY_VARIABLE} and a built Chroma index are required"),
 )
-
 
 
 def test_health_endpoint():

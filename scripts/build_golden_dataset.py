@@ -111,7 +111,6 @@ def clean_for_display(text):
     return cleaned.strip()
 
 
-
 def excerpt(text, limit=90):
     """Return the opening of a text, cut at a word boundary."""
     cleaned = clean_for_display(text)
@@ -596,12 +595,12 @@ def select_curated(table, count, challenging_count, english_count):
     needed_general = count - challenging_count
     needed_arabic = needed_general - english_count
 
-    english = [
-        entry for entry in general if entry.get("language", "ar") == "en"
-    ][:english_count]
-    arabic = [
-        entry for entry in general if entry.get("language", "ar") != "en"
-    ][:needed_arabic]
+    english = [entry for entry in general if entry.get("language", "ar") == "en"][
+        :english_count
+    ]
+    arabic = [entry for entry in general if entry.get("language", "ar") != "en"][
+        :needed_arabic
+    ]
 
     if len(english) < english_count or len(arabic) < needed_arabic:
         raise SystemExit(
@@ -612,8 +611,6 @@ def select_curated(table, count, challenging_count, english_count):
         )
 
     return challenging + english + arabic
-
-
 
 
 def curated_article_numbers():
@@ -905,8 +902,6 @@ def build_all_questions(articles, by_number):
             "Template selection produced duplicate articles across question types."
         )
 
-
-
     records = []
 
     # 1. article_lookup
@@ -960,8 +955,6 @@ def build_all_questions(articles, by_number):
                 label_articles=len(entry["articles"]) > 1,
             )
         )
-
-
 
     # 4. specific_provision
     for index, number in enumerate(provision_numbers):
@@ -1020,7 +1013,6 @@ def build_all_questions(articles, by_number):
             )
         )
 
-
     # Sequential ids in build order.
     for position, record in enumerate(records, start=1):
         record["id"] = f"q_{position:03d}"
@@ -1061,7 +1053,6 @@ def validate(records, by_number):
             f"expected exactly {EXPECTED_QUESTION_COUNT} questions, "
             f"found {len(records)}"
         )
-
 
     ids = [record["id"] for record in records]
     if len(set(ids)) != len(ids):
@@ -1110,9 +1101,7 @@ def validate(records, by_number):
                 )
             # ...and the context must BE the stored source text.
             if source_text not in record["ground_truth_contexts"]:
-                problems.append(
-                    f"{tag}: ground_truth_contexts miss article {number}"
-                )
+                problems.append(f"{tag}: ground_truth_contexts miss article {number}")
 
         # Multi-article questions must really need more than one article.
         needs_multiple = record["metadata"]["requires_multiple_articles"]
@@ -1231,9 +1220,11 @@ def main():
     print("-" * 64)
     print("Sample questions:")
     for record in records[:2] + records[20:22] + records[-2:]:
-        print(f"  [{record['id']}] ({record['question_type']}, "
-              f"{record['difficulty']}, {record['language']}) "
-              f"articles={record['relevant_articles']}")
+        print(
+            f"  [{record['id']}] ({record['question_type']}, "
+            f"{record['difficulty']}, {record['language']}) "
+            f"articles={record['relevant_articles']}"
+        )
         print(f"        {record['question'][:110]}")
     print("=" * 64)
     return 0
@@ -1241,10 +1232,3 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-
-
-
-
-

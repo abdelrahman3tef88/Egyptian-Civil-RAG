@@ -5,17 +5,16 @@
 وهو مش مسؤول عن استخراج أرقام المواد أو تنظيف النص أو الـchunking.
 """
 
-"""PDF loading, validation, and the simple digital/scan type check.
-
-This module is the INPUT boundary of the ingestion pipeline. It knows:
-  - where the single source PDF lives (one configurable path constant)
-  - how to open it safely with clear errors
-  - how to answer one simple question:
-        is the PDF digitally extractable (1) or scanned (0)?
-
-It does NOT do column splitting, article detection, or cleaning.
-Those responsibilities live in extraction.py and cleaning.py.
-"""
+# PDF loading, validation, and the simple digital/scan type check.
+#
+# This module is the INPUT boundary of the ingestion pipeline. It knows:
+#   - where the single source PDF lives (one configurable path constant)
+#   - how to open it safely with clear errors
+#   - how to answer one simple question:
+#         is the PDF digitally extractable (1) or scanned (0)?
+#
+# It does NOT do column splitting, article detection, or cleaning.
+# Those responsibilities live in extraction.py and cleaning.py.
 
 from pathlib import Path
 
@@ -24,13 +23,11 @@ from pathlib import Path
 # is avoided everywhere in this project.
 # PyMuPDF ببساطة هي Python library للتعامل مع ملفات الـPDF.
 # دي بتفتح الـPDF وتخليك تقدر تتعامل معاه صفحة صفحة.
-"""
-document = pymupdf.open(pdf_path)
-               |
-page = document.load_page(0)  # تجيب أول صفحة.
-               |         
-text = page.get_text()        # تستخرج الـtext الموجود داخل الصفحة.              
-"""
+# document = pymupdf.open(pdf_path)
+#                |
+# page = document.load_page(0)  # تجيب أول صفحة.
+#                |
+# text = page.get_text()        # تستخرج الـtext الموجود داخل الصفحة.
 import pymupdf
 
 

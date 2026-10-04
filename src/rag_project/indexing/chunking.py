@@ -94,11 +94,11 @@ text_splitter = RecursiveCharacterTextSplitter(
     length_function=len,
     # Try to split using larger separators first
     separators=[
-        "\n\n",   # Paragraph
-        "\n",     # New line
-        ".",      # Sentence
-        " ",      # Space
-        ""        # Character
+        "\n\n",  # Paragraph
+        "\n",  # New line
+        ".",  # Sentence
+        " ",  # Space
+        "",  # Character
     ],
 )
 

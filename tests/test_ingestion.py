@@ -151,7 +151,11 @@ def test_extract_articles_from_real_pdf():
         assert article["article_number"] > previous
         previous = article["article_number"]
         assert set(article) == {
-            "article_number", "text", "page_start", "page_end", "is_repealed",
+            "article_number",
+            "text",
+            "page_start",
+            "page_end",
+            "is_repealed",
         }
         # The record is bilingual: exactly two language keys.
         assert set(article["text"]) == {"ar", "en"}

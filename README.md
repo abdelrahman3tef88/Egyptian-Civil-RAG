@@ -27,4 +27,3 @@ Once running, you can access and test the service:
 - **Interactive API Documentation (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
 - **Query Endpoint**: `POST http://localhost:8000/ask` with JSON body `{"question": "your question here"}`
-

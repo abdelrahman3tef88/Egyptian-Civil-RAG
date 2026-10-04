@@ -28,7 +28,6 @@ requires_api_key = pytest.mark.skipif(
 )
 
 
-
 def test_prompt_has_context_and_question():
     """The prompt template asks for context + question."""
     assert "context" in prompts.prompt.input_variables

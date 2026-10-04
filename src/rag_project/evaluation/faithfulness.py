@@ -9,32 +9,31 @@ Faithfulness is defined (as in RAGAS) as:
     number of claims in the answer that are supported by the retrieved
     contexts  /  total number of claims in the answer
 
-Two interchangeable backends produce that number:
+ACTIVE BACKEND: ``ragas``
+--------------------------------
+The experiment evaluates faithfulness with the **real RAGAS
+``Faithfulness`` metric** (``ragas.metrics.collections.Faithfulness``),
+using the project's existing Gemini chat model as the judge through
+RAGAS' ``LangchainLLMWrapper``. That is the whole evaluation path:
 
-  * ``builtin`` (ACTIVE) - the project's own **LLM-based Faithfulness**:
-    the generated answer is decomposed into atomic claims, and every
-    claim is verified against the retrieved contexts. The judge model is
-    the configured Gemini model (see generation.judge_model) and it
-    needs no extra dependency.
-  * ``ragas`` (OPTIONAL) - the RAGAS ``Faithfulness`` metric, wrapped
-    around the same project LLM. Used only when the ``ragas`` package is
-    importable.
+    Question -> RAG pipeline -> Answer + Retrieved Contexts
+              -> RAGAS Faithfulness -> Gemini judge -> score
 
-Naming: because the active implementation is the project's own judge,
-its scores are reported as **"LLM-based Faithfulness"** and are never
-described as RAGAS scores. ``faithfulness_label()`` returns the exact
-name for a backend, and the runner records it per run as the MLflow
-parameter ``faithfulness_evaluator``.
+``backend = "ragas"`` is the default and the value used by
+``experiments/mlflow/experiment_config.yaml``.
 
-Why ``builtin`` is the default: RAGAS is not currently usable in this
-environment. ragas 0.4.3 imports
-``langchain_community.chat_models.vertexai``, which no longer exists in
-the project's langchain-community 0.4.2, so ``import ragas`` fails; making
-it import would mean downgrading the project's LangChain stack. RAGAS is
-therefore declared as an optional extra in pyproject.toml, and this module
-falls back to the built-in judge. The backend that actually produced each
-score is always reported in ``FaithfulnessResult.backend`` and recorded in
-the run artifacts.
+There is NO silent fallback. If RAGAS cannot be imported, or if the
+metric fails or returns an undefined score, the error is raised so the
+run fails loudly. A score produced by anything other than RAGAS is never
+reported as a RAGAS score.
+
+``builtin`` remains available ONLY as an explicit, opt-in backend (it is
+the project's own claim-decomposition judge). It is never selected
+automatically and is not used by the experiment.
+
+Naming: the MLflow metric key is always ``faithfulness``. The backend
+that actually produced each score is recorded per run as the parameter
+``faithfulness_evaluator`` (see ``faithfulness_label()``).
 
 CONTRACT - what this evaluator sees:
 
@@ -48,18 +47,41 @@ CONTRACT - what this evaluator sees:
 
 Both backends are used only by the evaluator; neither is part of the RAG
 pipeline itself.
+
+HOW A SCORE IS PRODUCED (two levels)
+------------------------------------
+    level 1 (per question)
+        evaluate_faithfulness(question, answer, contexts, llm)
+        -> one RAGAS Faithfulness score for that single question, judged
+           ONLY against the contexts retrieved for that question. Each
+           question is scored independently.
+
+    level 2 (the whole batch)
+        aggregate_faithfulness([per-question scores])
+        -> the single OVERALL Faithfulness score reported by the
+           experiment, taken as the mean of the per-question scores.
+
+The overall score is therefore always a mean of real per-question RAGAS
+scores; it is never a separate judgement, never a re-judging of all
+answers at once, and never a threshold/PASS-FAIL verdict.
 """
 
+import asyncio
 import json
 import re
+import warnings
 from dataclasses import dataclass, field
 
+from rag_project.evaluation import ragas_compat
 from rag_project.generation import llm as llm_module
 
 # The exact refusal sentence produced by the project's RAG prompt
 # (generation/prompts.py, instruction 3). An answer that is an honest
 # refusal asserts nothing, so it cannot be unfaithful.
 REFUSAL_SENTINEL = "I don't know based on the provided documents."
+
+# The backend used when the caller does not choose one.
+DEFAULT_BACKEND = "ragas"
 
 # Human-readable name of each backend's metric. The MLflow metric key is
 # always "faithfulness"; this is the label describing HOW it was computed.
@@ -70,16 +92,18 @@ FAITHFULNESS_LABELS = {
 
 
 def faithfulness_label(backend):
-    """Return the honest label for a backend name.
-
-    Anything that is not a pure built-in run (for example the recorded
-    fallback "builtin (ragas unavailable: ImportError)") is reported as
-    the built-in judge, because that is what actually produced the score.
-    """
+    """Return the honest label for a backend name."""
     return FAITHFULNESS_LABELS.get(
-        str(backend).split(" ")[0], FAITHFULNESS_LABELS["builtin"]
+        str(backend).split(" ")[0], FAITHFULNESS_LABELS[DEFAULT_BACKEND]
     )
 
+
+class RagasEvaluationError(RuntimeError):
+    """Raised when the RAGAS Faithfulness metric cannot produce a score.
+
+    This is deliberately fatal for the run: the experiment never quietly
+    substitutes the built-in judge for a RAGAS score.
+    """
 
 
 # ==========================================================
@@ -240,30 +264,80 @@ def _builtin_faithfulness(question, answer, contexts, llm, max_claims):
         claims=verdicts,
     )
 
+
 # ==========================================================
 # Backend 2: RAGAS Faithfulness (used when ragas is installed)
 # ==========================================================
+# Cache of built RAGAS scorers, keyed by the judge model identity. Building
+# a scorer re-creates its prompts, and the experiment scores 25 questions x
+# N configurations with the same judge, so the scorer is built once.
+_RAGAS_SCORERS = {}
+
+
+def _ragas_scorer(llm, faithfulness_cls, wrapper_cls):
+    """Return a RAGAS Faithfulness scorer wrapping the project's judge LLM."""
+    key = (type(llm).__name__, getattr(llm, "model", None))
+    if key not in _RAGAS_SCORERS:
+        _RAGAS_SCORERS[key] = faithfulness_cls(llm=wrapper_cls(llm))
+    return _RAGAS_SCORERS[key]
+
+
 def _ragas_faithfulness(question, answer, contexts, llm):
-    """Score faithfulness with the RAGAS Faithfulness metric."""
-    # Imported lazily so this module stays importable without RAGAS.
-    import asyncio
+    """Score faithfulness with the real RAGAS ``Faithfulness`` metric.
 
-    from ragas.dataset_schema import SingleTurnSample
-    from ragas.llms import LangchainLLMWrapper
-    from ragas.metrics import Faithfulness
+    Verified empirically against the installed ragas 0.4.3:
 
-    scorer = Faithfulness(llm=LangchainLLMWrapper(llm))
-    sample = SingleTurnSample(
-        user_input=question,
-        response=answer,
-        retrieved_contexts=list(contexts),
-    )
-    score = asyncio.run(scorer.single_turn_ascore(sample))
+    * ``ragas.metrics.Faithfulness`` + ``LangchainLLMWrapper`` WORKS with
+      the project's Gemini chat model and returns a numeric score.
+    * ``ragas.metrics.collections.Faithfulness`` (the newer, non-deprecated
+      module) REJECTS ``LangchainLLMWrapper``: it raises
+      "Collections metrics only support modern InstructorLLM", and its
+      ``llm_factory(provider="google")`` route additionally requires
+      LiteLLM, which the project does not depend on.
 
-    # A NaN score means RAGAS could not judge the sample; treat it as a
-    # hard failure so the caller falls back instead of logging NaN.
+    So the deprecated module path is used deliberately: it is the only
+    RAGAS Faithfulness entry point in 0.4.3 that can drive a non-OpenAI
+    provider (Gemini) without adding another LLM gateway dependency. It
+    is the same RAGAS metric implementation (same prompts, same
+    supported / total-claims arithmetic), and the deprecation warning is
+    silenced on purpose so it does not pollute the experiment output.
+
+    Any failure is raised as RagasEvaluationError. There is no fallback
+    to the built-in judge: a RAGAS score must always be a RAGAS score.
+    """
+    # 1) Make RAGAS importable (no LangChain downgrade; see ragas_compat).
+    ragas_compat.ensure_ragas_importable()
+
+    try:
+        with warnings.catch_warnings():
+            # Intentional: this module path is deprecated but is the only
+            # one that supports a non-OpenAI provider in ragas 0.4.3.
+            warnings.simplefilter("ignore", DeprecationWarning)
+            from ragas.dataset_schema import SingleTurnSample
+            from ragas.llms import LangchainLLMWrapper
+            from ragas.metrics import Faithfulness
+
+        scorer = _ragas_scorer(llm, Faithfulness, LangchainLLMWrapper)
+        sample = SingleTurnSample(
+            user_input=question,
+            response=answer,
+            retrieved_contexts=list(contexts),
+        )
+        score = asyncio.run(scorer.single_turn_ascore(sample))
+    except RagasEvaluationError:
+        raise
+    except Exception as error:  # noqa: BLE001 - re-raised as a clear error.
+        raise RagasEvaluationError(
+            f"RAGAS Faithfulness failed ({type(error).__name__}: {error}). "
+            "The experiment requires the real RAGAS metric and will not "
+            "fall back to the built-in judge."
+        ) from error
+
+    # An undefined (NaN/None) score is a failure, never a silent 0.
     if score is None or score != score:
-        raise ValueError("RAGAS returned an undefined faithfulness score")
+        raise RagasEvaluationError(
+            "RAGAS returned an undefined faithfulness score for this sample."
+        )
 
     return FaithfulnessResult(score=float(score), backend="ragas")
 
@@ -276,7 +350,7 @@ def evaluate_faithfulness(
     answer,
     contexts,
     llm=None,
-    backend="builtin",
+    backend=DEFAULT_BACKEND,
     max_claims=25,
 ):
     """Return the faithfulness score of one answer against its contexts.
@@ -288,11 +362,17 @@ def evaluate_faithfulness(
     ``llm`` is the JUDGE model. When it is not supplied, the project's
     Faithfulness judge is created (the configured Gemini model) - the
     generation role is never used as the judge.
+
+    ``backend`` defaults to ``DEFAULT_BACKEND`` ("ragas"), the real
+    RAGAS Faithfulness metric. The ``"builtin"`` judge is only used when
+    it is requested explicitly, and a RAGAS failure is NEVER turned into
+    a built-in score.
     """
     # The judge is a separate model from the answer generator.
     if llm is None:
         llm = llm_module.create_judge_llm()
 
+    backend = backend or DEFAULT_BACKEND
 
     # Normalise the contexts (a single string is accepted too).
     if isinstance(contexts, str):
@@ -307,26 +387,58 @@ def evaluate_faithfulness(
     if not contexts:
         return FaithfulnessResult(score=0.0, backend=backend)
 
-    # Requested RAGAS backend.
+    # Active evaluator: the real RAGAS metric. Errors propagate.
     if backend == "ragas":
-        try:
-            return _ragas_faithfulness(question, answer, contexts, llm)
-        except Exception as error:  # noqa: BLE001 - keep the run alive.
-            # Fall back to the built-in judge, but record the fallback in
-            # the result so the logged score stays transparent.
-            result = _builtin_faithfulness(
-                question, answer, contexts, llm, max_claims
-            )
-            result.backend = f"builtin (ragas unavailable: {type(error).__name__})"
-            return result
+        return _ragas_faithfulness(question, answer, contexts, llm)
 
-    # Default: minimal built-in judge.
-    return _builtin_faithfulness(question, answer, contexts, llm, max_claims)
+    # Explicit opt-in only (NOT used by the experiment).
+    if backend == "builtin":
+        return _builtin_faithfulness(question, answer, contexts, llm, max_claims)
+
+    raise ValueError(
+        f"unknown faithfulness backend {backend!r}; "
+        f"expected one of {sorted(FAITHFULNESS_LABELS)}"
+    )
 
 
 def aggregate_faithfulness(scores):
-    """Average the per-question scores, ignoring unanswered samples."""
-    usable = [score for score in scores if score is not None]
+    """Return the OVERALL Faithfulness score for the whole question set.
+
+    This is the second of two levels, and the only one reported as the
+    run's metric:
+
+        level 1 - evaluate_faithfulness() returns one RAGAS Faithfulness
+                  score per question, computed independently against
+                  that question's own retrieved contexts;
+        level 2 - this function combines those per-question scores into
+                  the single overall score for the whole batch.
+
+    Aggregation rule: the arithmetic MEAN of the per-question scores,
+    i.e. every question contributes equally regardless of how many
+    claims it produced. A question with many claims does not get more
+    weight than a one-sentence answer, and no configuration can raise
+    its overall score by making some single question very long.
+
+    Samples that carry no usable score (None, or a NaN that some metric
+    backends can return) are EXCLUDED from the mean rather than being
+    silently counted as 0.0, because a 0.0 would mean "the answer was
+    unfaithful" while a missing score means "nothing was measured" -
+    two very different claims. An empty batch scores 0.0.
+
+    This function only aggregates. It deliberately applies no
+    threshold, no PASS/FAIL verdict and no confidence interval: those
+    are interpretation decisions and do not belong to the metric.
+    """
+    usable = []
+    for score in scores:
+        # Drop only the samples that were never measured.
+        if score is None:
+            continue
+        # NaN != NaN: a NaN score is undefined, not a number to average.
+        if isinstance(score, float) and score != score:
+            continue
+        usable.append(float(score))
+
     if not usable:
         return 0.0
     return sum(usable) / len(usable)
@@ -341,4 +453,3 @@ def format_contexts(retrieved_documents):
     from rag_project.generation.chain import format_docs
 
     return format_docs(retrieved_documents)
-

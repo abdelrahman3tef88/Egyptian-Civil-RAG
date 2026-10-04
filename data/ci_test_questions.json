@@ -1,0 +1,431 @@
+{
+  "version": "ci-v1",
+  "source": "data/golden/golden_dataset.json (selected subset)",
+  "question_count": 20,
+  "language_distribution": {
+    "ar": 10,
+    "en": 10
+  },
+  "difficulty_distribution": {
+    "easy": 12,
+    "medium": 5,
+    "hard": 3
+  },
+  "difficulty_rubric": {
+    "multi_article": "hard",
+    "article_identification": "medium",
+    "specific_provision": "medium",
+    "article_lookup": "easy",
+    "legal_concept": "easy",
+    "paraphrased_question": "easy"
+  },
+  "note": "CI dataset only. Ground truth is evaluator-side reporting information: run_ci_test.py passes ONLY the question text to the RAG pipeline and to RAGAS Faithfulness.",
+  "questions": [
+    {
+      "id": "ci_001",
+      "source_golden_id": "q_001",
+      "language": "ar",
+      "question_type": "article_lookup",
+      "difficulty": "easy",
+      "question": "ما هو نص المادة 20 من القانون المدني المصري؟",
+      "ground_truth": "العقود ما بين األحياء تخضع في شكلها لقانون البلد الذي تمت فيه، ويجوز أيضا أن تخضع للقانون الذي يسري علي أحكامها الموضوعية، كما يجوز أن تخضع لقانون موطن المتعاقدين أو مانهقانو الوطني .المشترك",
+      "relevant_articles": [
+        "20"
+      ],
+      "ground_truth_contexts": [
+        "العقود ما بين األحياء تخضع في شكلها لقانون البلد الذي تمت فيه، ويجوز أيضا أن تخضع للقانون الذي يسري علي أحكامها الموضوعية، كما يجوز أن تخضع لقانون موطن المتعاقدين أو مانهقانو الوطني .المشترك"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "الموطن",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_002",
+      "source_golden_id": "q_002",
+      "language": "ar",
+      "question_type": "article_lookup",
+      "difficulty": "easy",
+      "question": "اذكر نص المادة 119 من القانون المدني المصري.",
+      "ground_truth": "يجوز لناقص األهلية أن يطلب إبطال العقد ، وهذا مع عدم اإلخالل بإلزامه بالتعويض ، إذا لجأ إلى طرق إحتياليه ليخفى نقص .أهليته",
+      "relevant_articles": [
+        "119"
+      ],
+      "ground_truth_contexts": [
+        "يجوز لناقص األهلية أن يطلب إبطال العقد ، وهذا مع عدم اإلخالل بإلزامه بالتعويض ، إذا لجأ إلى طرق إحتياليه ليخفى نقص .أهليته"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "التعويض",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_003",
+      "source_golden_id": "q_003",
+      "language": "en",
+      "question_type": "article_lookup",
+      "difficulty": "easy",
+      "question": "What is the text of Article 176 of the Egyptian Civil Code?",
+      "ground_truth": "A person in charge of an animal, even if he is not its owner, is liable for any harm done by the animal, even if the animal strays or escapes, unless such person shows that the accident was due to a cause beyond his control.",
+      "relevant_articles": [
+        "176"
+      ],
+      "ground_truth_contexts": [
+        "A person in charge of an animal, even if he is not its owner, is liable for any harm done by the animal, even if the animal strays or escapes, unless such person shows that the accident was due to a cause beyond his control."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "المسؤولية عن الضرر",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_004",
+      "source_golden_id": "q_004",
+      "language": "en",
+      "question_type": "article_lookup",
+      "difficulty": "easy",
+      "question": "What is the text of Article 225 of the Egyptian Civil Code?",
+      "ground_truth": "When the loss exceeds the amount fixed by the contract, the creditor cannot claim an increased sum, unless he is able to prove that the debtor has been guilty of fraud or gross negligence.",
+      "relevant_articles": [
+        "225"
+      ],
+      "ground_truth_contexts": [
+        "When the loss exceeds the amount fixed by the contract, the creditor cannot claim an increased sum, unless he is able to prove that the debtor has been guilty of fraud or gross negligence."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "المسؤولية عن الضرر",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_005",
+      "source_golden_id": "q_005",
+      "language": "en",
+      "question_type": "article_lookup",
+      "difficulty": "easy",
+      "question": "What is the text of Article 299 of the Egyptian Civil Code?",
+      "ground_truth": "When the debt concerns one only of the joint and several debtors, he will be liable for the whole debt to the other co-debtors. 2. Indivisibility",
+      "relevant_articles": [
+        "299"
+      ],
+      "ground_truth_contexts": [
+        "When the debt concerns one only of the joint and several debtors, he will be liable for the whole debt to the other co-debtors. 2. Indivisibility"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "الصلح",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_006",
+      "source_golden_id": "q_006",
+      "language": "ar",
+      "question_type": "article_identification",
+      "difficulty": "medium",
+      "question": "أي مادة من القانون المدني المصري تنص على ما يلي: «لكل من نازعه الغير فى استعمال اسمه بال مبرر، ومن انتحل الغير اسمه دون حق ، أن يطلب وقف هذا االعتداء…»؟",
+      "ground_truth": "المادة 51 من القانون المدني المصري: لكل من نازعه الغير فى استعمال اسمه بال مبرر، ومن انتحل الغير اسمه دون حق ، أن يطلب وقف هذا االعتداء مع التعويض عما يكون قد لحقه من .ضرر\n\n-2 الشخص االعتباري",
+      "relevant_articles": [
+        "51"
+      ],
+      "ground_truth_contexts": [
+        "لكل من نازعه الغير فى استعمال اسمه بال مبرر، ومن انتحل الغير اسمه دون حق ، أن يطلب وقف هذا االعتداء مع التعويض عما يكون قد لحقه من .ضرر\n\n-2 الشخص االعتباري"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "المسؤولية عن الضرر",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_007",
+      "source_golden_id": "q_007",
+      "language": "ar",
+      "question_type": "article_identification",
+      "difficulty": "medium",
+      "question": "حدد رقم المادة التي ورد فيها النص الآتي من القانون المدني المصري: «من سبب ضررا للغير ليتفادى ضررا اكبر محدقا به أو بغيره ، لا يكون ملزما اال بالتعويض الذى يراه القاضى…»",
+      "ground_truth": "المادة 168 من القانون المدني المصري: من سبب ضررا للغير ليتفادى ضررا اكبر محدقا به أو بغيره ، ال يكون ملزما اال بالتعويض الذى يراه القاضى .مناسبا",
+      "relevant_articles": [
+        "168"
+      ],
+      "ground_truth_contexts": [
+        "من سبب ضررا للغير ليتفادى ضررا اكبر محدقا به أو بغيره ، ال يكون ملزما اال بالتعويض الذى يراه القاضى .مناسبا"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "المسؤولية عن الضرر",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_008",
+      "source_golden_id": "q_008",
+      "language": "en",
+      "question_type": "article_identification",
+      "difficulty": "medium",
+      "question": "Which article of the Egyptian Civil Code contains the following provision: “The judge may reduce the amount of damages or may even refuse to allow damages if the creditor, by…”?",
+      "ground_truth": "Article 216 of the Egyptian Civil Code: The judge may reduce the amount of damages or may even refuse to allow damages if the creditor, by his own fault, has contributed to the cause of, or increased, the loss.",
+      "relevant_articles": [
+        "216"
+      ],
+      "ground_truth_contexts": [
+        "The judge may reduce the amount of damages or may even refuse to allow damages if the creditor, by his own fault, has contributed to the cause of, or increased, the loss."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "المسؤولية عن الضرر",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_009",
+      "source_golden_id": "q_009",
+      "language": "en",
+      "question_type": "article_identification",
+      "difficulty": "medium",
+      "question": "Which article of the Egyptian Civil Code contains the following provision: “Insolvency is declared by judgment delivered by the Court of First Instance of the district in…”?",
+      "ground_truth": "Article 250 of the Egyptian Civil Code: Insolvency is declared by judgment delivered by the Court of First Instance of the district in which the domicile of the debtor is situated, upon the petition of the debtor himself or of one of his creditors. The case will be heard as one of urgency.",
+      "relevant_articles": [
+        "250"
+      ],
+      "ground_truth_contexts": [
+        "Insolvency is declared by judgment delivered by the Court of First Instance of the district in which the domicile of the debtor is situated, upon the petition of the debtor himself or of one of his creditors. The case will be heard as one of urgency."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "الموطن",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_010",
+      "source_golden_id": "q_010",
+      "language": "ar",
+      "question_type": "legal_concept",
+      "difficulty": "easy",
+      "question": "متى يعتبر السكوت عن الرد قبولاً في القانون المدني المصري؟",
+      "ground_truth": "(1) إذا كانت طبيعة المعاملة أو العرف التجاري أو غير ذلك من الظروف على أن الموجب لم يكن ينتظر تصريحا .بالقبول فإن العقد يعتبر قد ،تدلتم إذا لم يرفض اإليجاب في وقت .مناسب\n\n(2) ويعتبر السكوت عن الرد .قبوالً إذا كان ه ناك تعامل سابق بين المتعاقدين واتصل اإليجاب ذا التعامل، أو إذا تمخض اإليجاب لمنفعة من وجه .إليه",
+      "relevant_articles": [
+        "98"
+      ],
+      "ground_truth_contexts": [
+        "(1) إذا كانت طبيعة المعاملة أو العرف التجاري أو غير ذلك من الظروف على أن الموجب لم يكن ينتظر تصريحا .بالقبول فإن العقد يعتبر قد ،تدلتم إذا لم يرفض اإليجاب في وقت .مناسب\n\n(2) ويعتبر السكوت عن الرد .قبوالً إذا كان ه ناك تعامل سابق بين المتعاقدين واتصل اإليجاب ذا التعامل، أو إذا تمخض اإليجاب لمنفعة من وجه .إليه"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "الإيجاب والقبول",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_011",
+      "source_golden_id": "q_011",
+      "language": "en",
+      "question_type": "legal_concept",
+      "difficulty": "easy",
+      "question": "In a sale where the price is deferred, may the vendor keep the ownership with the purchaser until the price is paid in full?",
+      "ground_truth": "In a credit sale the vendor may stipulate that the transfer of ownership to the purchaser is subject to integral payment of the price, even if the thing sold has been delivered. If the price is payable by installments, the contracting parties may agree that the vendor may retain a part of the price by way of damages should the sale be cancelled for non-payment of all the installments. The judge may, however, according to circumstances, reduce the amount of damages agreed, by applying the provisions of paragraph 2 of Article 224. When all the installments have been paid, the transfer of the ownership of the thing sold shall be deemed to have taken place as from the date of sale. The provisions of the three preceding paragraphs are applicable even if the contracting parties have described the contract of sale as a contract of lease.",
+      "relevant_articles": [
+        "430"
+      ],
+      "ground_truth_contexts": [
+        "In a credit sale the vendor may stipulate that the transfer of ownership to the purchaser is subject to integral payment of the price, even if the thing sold has been delivered. If the price is payable by installments, the contracting parties may agree that the vendor may retain a part of the price by way of damages should the sale be cancelled for non-payment of all the installments. The judge may, however, according to circumstances, reduce the amount of damages agreed, by applying the provisions of paragraph 2 of Article 224. When all the installments have been paid, the transfer of the ownership of the thing sold shall be deemed to have taken place as from the date of sale. The provisions of the three preceding paragraphs are applicable even if the contracting parties have described the contract of sale as a contract of lease."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "Sale",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_012",
+      "source_golden_id": "q_012",
+      "language": "ar",
+      "question_type": "legal_concept",
+      "difficulty": "easy",
+      "question": "ما هو الوقت الذي ينعقد فيه العقد وفقاً للقانون المدني المصري، وما الذي يشترط لانعقاده؟",
+      "ground_truth": "يتم العقد بمجرد أن يتبادل طرفان التعبير عن إرادتين متطابقتين، مع مراعاة ما يقرره القانون فوق ذلك من أوضاع معينة النعقاد .العقد",
+      "relevant_articles": [
+        "89"
+      ],
+      "ground_truth_contexts": [
+        "يتم العقد بمجرد أن يتبادل طرفان التعبير عن إرادتين متطابقتين، مع مراعاة ما يقرره القانون فوق ذلك من أوضاع معينة النعقاد .العقد"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "انعقاد العقد",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_013",
+      "source_golden_id": "q_014",
+      "language": "ar",
+      "question_type": "specific_provision",
+      "difficulty": "medium",
+      "question": "ما الحكم الذي قررته المادة 145 من القانون المدني المصري بشأن «نصرف أثر العقد إلى المتعاقدين والخلف العام. دون إخالل بالقواعد المتعلقة…»؟",
+      "ground_truth": "نصرف أثر العقد إلى المتعاقدين والخلف .العام دون إخالل بالقواعد المتعلقة بالميراث ، ما لم يتبين من العقد أو من طبيعة التعامل أو من نص القانون أن هذا األثر ال ينصرف إلى الخلف .العام",
+      "relevant_articles": [
+        "145"
+      ],
+      "ground_truth_contexts": [
+        "نصرف أثر العقد إلى المتعاقدين والخلف .العام دون إخالل بالقواعد المتعلقة بالميراث ، ما لم يتبين من العقد أو من طبيعة التعامل أو من نص القانون أن هذا األثر ال ينصرف إلى الخلف .العام"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "الميراث",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_014",
+      "source_golden_id": "q_017",
+      "language": "ar",
+      "question_type": "multi_article",
+      "difficulty": "hard",
+      "question": "كيف ينعقد العقد في القانون المدني المصري، وما القوة الملزمة التي تترتب عليه بعد انعقاده؟",
+      "ground_truth": "المادة 89:\nيتم العقد بمجرد أن يتبادل طرفان التعبير عن إرادتين متطابقتين، مع مراعاة ما يقرره القانون فوق ذلك من أوضاع معينة النعقاد .العقد\n\nالمادة 147:\n(1) العقد شريعة المتعاقدين ، فال يجوز نقضه وال تعديله إال باتفاق الطرفين ، أو لألسباب التى يقررها .القانون\n\n(2) ومع ذلك إذا طرأت حوادث استثنائية عامة لم يكن فى الوسع توقعها وترتب على حدوثها أن تنفيذ اإللتزام التعاقدى ، وان لم يصبح مستحيال ، صار مرهقا للمدين بحيث يهدده بخسارة فادحة ، جاز للقاضى تبعا للظروف وسد الموازنة بين مصلحة الطرفين أن يرد اإللتزام المرهق إلى الحد .المعقول ويقع باطال كل اتفاق على خالف .ذلك",
+      "relevant_articles": [
+        "89",
+        "147"
+      ],
+      "ground_truth_contexts": [
+        "يتم العقد بمجرد أن يتبادل طرفان التعبير عن إرادتين متطابقتين، مع مراعاة ما يقرره القانون فوق ذلك من أوضاع معينة النعقاد .العقد",
+        "(1) العقد شريعة المتعاقدين ، فال يجوز نقضه وال تعديله إال باتفاق الطرفين ، أو لألسباب التى يقررها .القانون\n\n(2) ومع ذلك إذا طرأت حوادث استثنائية عامة لم يكن فى الوسع توقعها وترتب على حدوثها أن تنفيذ اإللتزام التعاقدى ، وان لم يصبح مستحيال ، صار مرهقا للمدين بحيث يهدده بخسارة فادحة ، جاز للقاضى تبعا للظروف وسد الموازنة بين مصلحة الطرفين أن يرد اإللتزام المرهق إلى الحد .المعقول ويقع باطال كل اتفاق على خالف .ذلك"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "انعقاد العقد وآثاره",
+        "requires_multiple_articles": true
+      }
+    },
+    {
+      "id": "ci_015",
+      "source_golden_id": "q_018",
+      "language": "ar",
+      "question_type": "multi_article",
+      "difficulty": "hard",
+      "question": "ما القوة الملزمة للعقد، وكيف يجب تنفيذ ما اشتمل عليه وفقاً لما يوجبه القانون المدني؟",
+      "ground_truth": "المادة 147:\n(1) العقد شريعة المتعاقدين ، فال يجوز نقضه وال تعديله إال باتفاق الطرفين ، أو لألسباب التى يقررها .القانون\n\n(2) ومع ذلك إذا طرأت حوادث استثنائية عامة لم يكن فى الوسع توقعها وترتب على حدوثها أن تنفيذ اإللتزام التعاقدى ، وان لم يصبح مستحيال ، صار مرهقا للمدين بحيث يهدده بخسارة فادحة ، جاز للقاضى تبعا للظروف وسد الموازنة بين مصلحة الطرفين أن يرد اإللتزام المرهق إلى الحد .المعقول ويقع باطال كل اتفاق على خالف .ذلك\n\nالمادة 148:\n(1) يجب تنفيذ العقد طبقا لما اشتمل عليه وبطريقة تتفق مع ما يوجبه حسن .النية\n\n(2) وال يقتصر العقد على إلزام المتعاقد بما ورد .فيه ولكن يتناول أيضا ما هو من مستلزماته ، وفقا للقانون والعرف والعدالة بحسب طبيعة .اإللتزام",
+      "relevant_articles": [
+        "147",
+        "148"
+      ],
+      "ground_truth_contexts": [
+        "(1) العقد شريعة المتعاقدين ، فال يجوز نقضه وال تعديله إال باتفاق الطرفين ، أو لألسباب التى يقررها .القانون\n\n(2) ومع ذلك إذا طرأت حوادث استثنائية عامة لم يكن فى الوسع توقعها وترتب على حدوثها أن تنفيذ اإللتزام التعاقدى ، وان لم يصبح مستحيال ، صار مرهقا للمدين بحيث يهدده بخسارة فادحة ، جاز للقاضى تبعا للظروف وسد الموازنة بين مصلحة الطرفين أن يرد اإللتزام المرهق إلى الحد .المعقول ويقع باطال كل اتفاق على خالف .ذلك",
+        "(1) يجب تنفيذ العقد طبقا لما اشتمل عليه وبطريقة تتفق مع ما يوجبه حسن .النية\n\n(2) وال يقتصر العقد على إلزام المتعاقد بما ورد .فيه ولكن يتناول أيضا ما هو من مستلزماته ، وفقا للقانون والعرف والعدالة بحسب طبيعة .اإللتزام"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "تنفيذ العقد",
+        "requires_multiple_articles": true
+      }
+    },
+    {
+      "id": "ci_016",
+      "source_golden_id": "q_019",
+      "language": "ar",
+      "question_type": "multi_article",
+      "difficulty": "hard",
+      "question": "ما أساس المسؤولية عن الفعل الضار، وكيف تكون المسؤولية إذا تعدد المسؤولون عن الضرر؟",
+      "ground_truth": "المادة 163:\nكل خطأ سبب ضررا للغير يلزم من ارتكبه .بالتعويض\n\nالمادة 169:\nإذا تعدد المسئولون عن عمل ضار كانوا متضامنين فى إلتزامهم بتعويض الضرر ، وتكون المسئولية فيما بينهم بالتساوى ، اال إذا عين القاضى نصيب كل منهم فى .التعويض",
+      "relevant_articles": [
+        "163",
+        "169"
+      ],
+      "ground_truth_contexts": [
+        "كل خطأ سبب ضررا للغير يلزم من ارتكبه .بالتعويض",
+        "إذا تعدد المسئولون عن عمل ضار كانوا متضامنين فى إلتزامهم بتعويض الضرر ، وتكون المسئولية فيما بينهم بالتساوى ، اال إذا عين القاضى نصيب كل منهم فى .التعويض"
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "المسؤولية التقصيرية",
+        "requires_multiple_articles": true
+      }
+    },
+    {
+      "id": "ci_017",
+      "source_golden_id": "q_021",
+      "language": "en",
+      "question_type": "paraphrased_question",
+      "difficulty": "easy",
+      "question": "What is preemption, and when may a person take the purchaser's place in the sale of immovable property?",
+      "ground_truth": "Preemption is the opportunity that a person has to substitute himself in a sale of immovable property in the place of the purchaser, in the cases and subject to the conditions laid down in the following articles.",
+      "relevant_articles": [
+        "935"
+      ],
+      "ground_truth_contexts": [
+        "Preemption is the opportunity that a person has to substitute himself in a sale of immovable property in the place of the purchaser, in the cases and subject to the conditions laid down in the following articles."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "Preemption",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_018",
+      "source_golden_id": "q_022",
+      "language": "en",
+      "question_type": "paraphrased_question",
+      "difficulty": "easy",
+      "question": "What is a contract of suretyship, and what does the surety undertake towards the creditor?",
+      "ground_truth": "Suretyship is a contract whereby a person guarantees the performance of an obligation by giving an undertaking to the creditors to fulfil such obligation should the debtor fail to do so.",
+      "relevant_articles": [
+        "772"
+      ],
+      "ground_truth_contexts": [
+        "Suretyship is a contract whereby a person guarantees the performance of an obligation by giving an undertaking to the creditors to fulfil such obligation should the debtor fail to do so."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "Suretyship",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_019",
+      "source_golden_id": "q_023",
+      "language": "en",
+      "question_type": "paraphrased_question",
+      "difficulty": "easy",
+      "question": "When is a gift complete, and who is allowed to accept it on behalf of the donee?",
+      "ground_truth": "A gift is not complete until it is accepted by the donee or by his representative. If the donor is the natural or legal guardian of the donee, he may accept the gift on his behalf and take delivery thereof.",
+      "relevant_articles": [
+        "487"
+      ],
+      "ground_truth_contexts": [
+        "A gift is not complete until it is accepted by the donee or by his representative. If the donor is the natural or legal guardian of the donee, he may accept the gift on his behalf and take delivery thereof."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "Gift",
+        "requires_multiple_articles": false
+      }
+    },
+    {
+      "id": "ci_020",
+      "source_golden_id": "q_024",
+      "language": "en",
+      "question_type": "paraphrased_question",
+      "difficulty": "easy",
+      "question": "After how many years does an ordinary obligation become prescribed under the Egyptian Civil Code?",
+      "ground_truth": "The term of prescription for obligations is fifteen years with the exception of those cases for which a special provision is contained in the law and with the exception also of the following cases.",
+      "relevant_articles": [
+        "374"
+      ],
+      "ground_truth_contexts": [
+        "The term of prescription for obligations is fifteen years with the exception of those cases for which a special provision is contained in the law and with the exception also of the following cases."
+      ],
+      "metadata": {
+        "source": "data/processed/articles.json",
+        "topic": "Prescription",
+        "requires_multiple_articles": false
+      }
+    }
+  ]
+}

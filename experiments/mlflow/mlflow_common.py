@@ -36,7 +36,6 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "experiments" / "mlflow" / "experiment_conf
 DEFAULT_LOCAL_TRACKING_URI = f"sqlite:///{(PROJECT_ROOT / 'mlflow.db').as_posix()}"
 
 
-
 def load_experiment_config(config_path=None):
     """Read experiments/mlflow/experiment_config.yaml."""
     import yaml
@@ -104,4 +103,3 @@ def configure_tracking(mlflow, config):
     elif not os.getenv("MLFLOW_TRACKING_URI"):
         mlflow.set_tracking_uri(DEFAULT_LOCAL_TRACKING_URI)
     return mlflow.get_tracking_uri()
-

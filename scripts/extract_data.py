@@ -305,11 +305,15 @@ def print_report(metrics, checks, pdf_type, page_count, rejected_headers):
     print(f"  Empty article texts      : {metrics['empty_text_count']} (Arabic)")
     print(f"  Empty English texts      : {metrics['empty_english_text_count']}")
     print(f"  Arabic character ratio   : {metrics['arabic_ratio']:.2%}")
-    print(f"  English match ratio      : {metrics['english_match_ratio']:.2%} "
-          f"({metrics['english_matched']}/{metrics['article_count']}, window +/-1 page)")
-    print(f"  English coverage ratio   : {metrics['english_coverage_ratio']:.2%} "
-          f"({metrics['article_count']} articles / {metrics['english_union_count']} "
-          f"English Article-N numbers)")
+    print(
+        f"  English match ratio      : {metrics['english_match_ratio']:.2%} "
+        f"({metrics['english_matched']}/{metrics['article_count']}, window +/-1 page)"
+    )
+    print(
+        f"  English coverage ratio   : {metrics['english_coverage_ratio']:.2%} "
+        f"({metrics['article_count']} articles / {metrics['english_union_count']} "
+        f"English Article-N numbers)"
+    )
     print(f"  Numbering gaps (>1)      : {metrics['numbering_gaps']}")
     # Show every gap pair: 53->81 and 388->418 are the repealed-range
     # omissions of this source edition; any other pair is reviewed.
@@ -318,8 +322,10 @@ def print_report(metrics, checks, pdf_type, page_count, rejected_headers):
     print(f"  Rejected header candidates: {metrics['rejected_count']}")
     for page_number, line in rejected_headers[:5]:  # First 5 samples only.
         print(f"      p{page_number}: {line[:70]}")
-    print(f"  Latin-token contamination : {metrics['contamination_count']} "
-          f"{metrics['contamination_tokens']}")
+    print(
+        f"  Latin-token contamination : {metrics['contamination_count']} "
+        f"{metrics['contamination_tokens']}"
+    )
     print(f"  Heading lines (preserved) : {metrics['heading_line_count']}")
 
     # --- headline summary block ---
@@ -330,7 +336,9 @@ def print_report(metrics, checks, pdf_type, page_count, rejected_headers):
     print()
     print(f"PDF Type              : {type_label}")
     print(f"Pages                 : {page_count}")
-    print(f"Arabic Text Extracted : {'YES' if metrics['arabic_ratio'] >= MIN_ARABIC_RATIO else 'NO'}")
+    print(
+        f"Arabic Text Extracted : {'YES' if metrics['arabic_ratio'] >= MIN_ARABIC_RATIO else 'NO'}"
+    )
     print(f"Articles Extracted    : {metrics['article_count']}")
     print(f"Repealed Articles     : {metrics['repealed_count']}")
     print(f"Multi-page Articles   : {metrics['multi_page_count']}")
@@ -390,7 +398,9 @@ def main():
     document.close()  # Release the PDF file handle.
 
     # --- Stage 3: calculate every reported value ---
-    metrics = compute_metrics(articles, preamble, rejected_headers, english_per_page, page_count)
+    metrics = compute_metrics(
+        articles, preamble, rejected_headers, english_per_page, page_count
+    )
 
     # --- Stage 4: run the five validation checks ---
     checks = run_validation(articles, metrics)

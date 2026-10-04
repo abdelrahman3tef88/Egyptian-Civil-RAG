@@ -4,43 +4,47 @@
 هدفه يكون المكان المركزي اللي المشروع كله ياخد منه الـconfiguration والـpaths والـenvironment variables.
 """
 
-"""Centralized project configuration.
-
-Loads configs/config.yaml once and exposes it to every stage
-(indexing, retrieval, generation, API) so no module hard-codes
-hyperparameters or paths. Secrets stay in .env (see generation/llm.py).
-
-Project layout (this file = src/rag_project/config/settings.py):
-    parents[0] = config, [1] = rag_project, [2] = src, [3] = project root
-
-    يعني : ال project root الاصلي داخله (src) داخله (rag_project) داخله (config) 
-    ال project root جواه اي ملف او فولدر خارجي او داخلي من للي انت عاملهم دول 
-    بالتالي هعرف ال project root واستدعي اي ملف او فولدر انا عايز منه 
-    project root --> Egyptian Civil RAG Project/    
-"""
+# Centralized project configuration.
+#
+# Loads configs/config.yaml once and exposes it to every stage
+# (indexing, retrieval, generation, API) so no module hard-codes
+# hyperparameters or paths. Secrets stay in .env (see generation/llm.py).
+#
+# Project layout (this file = src/rag_project/config/settings.py):
+#     parents[0] = config, [1] = rag_project, [2] = src, [3] = project root
+#
+#     يعني : ال project root الاصلي داخله (src) داخله (rag_project) داخله (config)
+#     ال project root جواه اي ملف او فولدر خارجي او داخلي من للي انت عاملهم دول
+#     بالتالي هعرف ال project root واستدعي اي ملف او فولدر انا عايز منه
+#     project root --> Egyptian Civil RAG Project/
 
 from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
-"""
-.env
-  ↓
-load_dotenv()
-  ↓
-Environment Variables / Secrets
-"""
+# .env
+#   ↓
+# load_dotenv()
+#   ↓
+# Environment Variables / Secrets
 
 # Load secrets (API keys, ...) from the project .env file into the
 # environment once, at the configuration layer, so every module
 # (scripts, tests, API) sees the same environment variables.
 load_dotenv()
 
-# Project root, derived from this file's location.
-# هعرف ال path location بتاعه 
+# Project root, derived from this file's location
+# (src/rag_project/config/settings.py -> parents[3] = the repository root).
+#
+# This is deliberately NOT Path.cwd(): scripts and the MLflow experiment
+# runner are executed from several directories (the repo root,
+# experiments/mlflow, ...), and a cwd-based root makes importing this
+# module fail with "Configuration file not found" whenever the working
+# directory is not the project root. It is also correct inside Docker,
+# where the source is copied to /app/src, giving /app as the root.
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-# The central configuration file.
+# Central configuration file.
 # Path أداة من Python للتعامل مع file paths.
 # من ال project root خش جوة ال configs وهات من داخله ال config.yaml
 CONFIG_PATH = PROJECT_ROOT / "configs" / "config.yaml"
@@ -55,7 +59,7 @@ def load_config(path=None):
     # Fail clearly when the configuration file is missing.
     # check Is the config path exist or not ?  if not exist print and show "Configuration file not found"
     # المشكلة اللي بتحلها؟
-    # بدل ما يحصل error غامض بعدين، تعرف مباشرة إن: 
+    # بدل ما يحصل error غامض بعدين، تعرف مباشرة إن:
     # الـconfiguration file نفسه ناقص.
 
     if not config_path.exists():
@@ -64,25 +68,25 @@ def load_config(path=None):
     # UTF-8 keeps the file readable with any language in it.
     # يفتح ملف ال yaml ويقراها "r" و باي لغه -> (encoding="utf-8") ك config_file
     with open(config_path, "r", encoding="utf-8") as config_file:
-    # دي بتحول محتوى YAML إلى Python object، غالبًا dictionary.
-    # هدفها --> تخلي باقي المشروع يتعامل مع الـconfig كـPython data بدل ما يقرأ YAML بنفسه.    
+        # دي بتحول محتوى YAML إلى Python object، غالبًا dictionary.
+        # هدفها --> تخلي باقي المشروع يتعامل مع الـconfig كـPython data بدل ما يقرأ YAML بنفسه.
         return yaml.safe_load(config_file)
 
 
 # Loaded once at import; every module reads its section from here.
+# Loaded once at import; every module reads its section from here.
 CONFIG = load_config()
 
-"""
-config.yaml
-  ↓
-load_config()
-  ↓
-CONFIG
-  ↓
-indexing / retrieval / generation / API
-"""
+# config.yaml
+#   ↓
+# load_config()
+#   ↓
+# CONFIG
+#   ↓
+# indexing / retrieval / generation / API
 
-# function --> هدفها توحيد ال paths كلها ونشتغل عليها موحدة في البروجت كله 
+
+# function --> هدفها توحيد ال paths كلها ونشتغل عليها موحدة في البروجت كله
 # فهنحول ال paths من --> relative الي absolute
 def resolve_path(relative_path):
     """Turn a project-relative config path into an absolute path."""

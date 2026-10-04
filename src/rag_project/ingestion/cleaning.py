@@ -12,34 +12,32 @@ an article as repealed is a normalization/metadata concern: the
 article text itself is always preserved.
 """
 
-"""
-دي مكتبة Python للـRegular Expressions.
-
-بتعمل إيه؟
-
-بتساعدك تبحث عن patterns معينة في النص.
-
-مثلاً:
-
-(1)
-(2)
-(أ)
-
-أو:
-
-)(2(
-
-وتقدر تحدد pattern معين وتعدله.
-
-هدفها هنا؟
-
-استخدامها في:
-
-اكتشاف الـclause markers
-إصلاح الأقواس
-اكتشاف بداية paragraph
-تنظيف الـPDF artifacts
-"""
+# دي مكتبة Python للـRegular Expressions.
+#
+# بتعمل إيه؟
+#
+# بتساعدك تبحث عن patterns معينة في النص.
+#
+# مثلاً:
+#
+# (1)
+# (2)
+# (أ)
+#
+# أو:
+#
+# )(2(
+#
+# وتقدر تحدد pattern معين وتعدله.
+#
+# هدفها هنا؟
+#
+# استخدامها في:
+#
+# اكتشاف الـclause markers
+# إصلاح الأقواس
+# اكتشاف بداية paragraph
+# تنظيف الـPDF artifacts
 import re
 
 
@@ -55,15 +53,14 @@ REPEALED_RANGES = [
     (389, 417),
 ]
 
-"""
-المشكلة اللي بتحلها؟
 
-بدل ما تعمل check يدوي لكل مادة، الـfunction بتعمل الـcheck أوتوماتيك.
-
-باختصار:
-
-is_repealed_article() = هل المادة دي ملغاة؟
-"""
+# المشكلة اللي بتحلها؟
+#
+# بدل ما تعمل check يدوي لكل مادة، الـfunction بتعمل الـcheck أوتوماتيك.
+#
+# باختصار:
+#
+# is_repealed_article() = هل المادة دي ملغاة؟
 def is_repealed_article(article_number):
     """Return True when the article number falls in a repealed range."""
     # Check every known range with a simple loop.
@@ -87,24 +84,23 @@ def is_repealed_article(article_number):
 # نوعين من الارقام العربيه
 ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹"
 # The matching Western digits (same order, two digit systems).
-# الارقام العاديه للي بيقدر يتعامل معاها 
+# الارقام العاديه للي بيقدر يتعامل معاها
 WESTERN_DIGITS = "01234567890123456789"
 # A translation table usable with str.translate().
 # ديه مجرد transalation table  بتهيئ تحويل الارقام من ARABIC_DIGITS الي WESTERN_DIGITS
-"""
-يعني تقول لـPython:
-
-٠ → 0
-١ → 1
-٢ → 2
-...
-الهدف؟
-
-توحيد شكل الأرقام.
-"""
+# يعني تقول لـPython:
+#
+# ٠ → 0
+# ١ → 1
+# ٢ → 2
+# ...
+# الهدف؟
+#
+# توحيد شكل الأرقام.
 DIGIT_TABLE = str.maketrans(ARABIC_DIGITS, WESTERN_DIGITS)
 
-# توحد شكل الارقام وبتحوله من ARABIC_DIGITS الي WESTERN_DIGITS 
+
+# توحد شكل الارقام وبتحوله من ARABIC_DIGITS الي WESTERN_DIGITS
 # دة ال transaltion الفعلي المطبق علي translation table
 def normalize_arabic_digits(text):
     """Convert Arabic-Indic digits (٠١..٩) to Western digits (01..9)."""
@@ -120,37 +116,33 @@ def normalize_arabic_digits(text):
 # noise: they carry no legal meaning and only break comparisons
 # and regex matching, so they are replaced by a normal space.
 # ============================================================
-"""
-دي بتحدد مجموعة من الـcharacters اللي ممكن تظهر أثناء استخراج الـPDF لكنها مش ظاهرة للمستخدم.
+# دي بتحدد مجموعة من الـcharacters اللي ممكن تظهر أثناء استخراج الـPDF لكنها مش ظاهرة للمستخدم.
+#
+# زي:
+#
+# Zero-width characters
+# Bidirectional marks
+# Non-breaking spaces
+# المشكلة؟
+#
+# ممكن يكون عندك:
+#
+# المادة​ 15
+#
+# وأنت شايفها كأنها:
+#
+# المادة 15
+#
+# لكن Python ممكن يعتبر بينهم character إضافي.
+#
+# وده يعمل مشاكل في:
+#
+# regex matching
+# comparison
+# search
+# article detection
 
-زي:
-
-Zero-width characters
-Bidirectional marks
-Non-breaking spaces
-المشكلة؟
-
-ممكن يكون عندك:
-
-المادة​ 15
-
-وأنت شايفها كأنها:
-
-المادة 15
-
-لكن Python ممكن يعتبر بينهم character إضافي.
-
-وده يعمل مشاكل في:
-
-regex matching
-comparison
-search
-article detection
-"""
-
-INVISIBLE_CHARACTERS = re.compile(
-    r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u00a0]"
-)
+INVISIBLE_CHARACTERS = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u00a0]")
 
 
 # ============================================================
@@ -183,45 +175,41 @@ CLAUSE_LETTER_PARENS = re.compile(r"[()]\s*([أ-ي])\s*[()]")
 # Only 1-3 digit numbers qualify (a wrapped year like "1949 (" cannot
 # match), and lines like "2 - نص" (dash style) are untouched because
 # a parenthesis right after the digit is required.
-"""
-دي بتتعامل مع الـclause marker لما يكون في بداية السطر.
-
-مثلاً:
-
-1( ( النص القانوني
-
-تتحول إلى:
-
-(1) النص القانوني
-"""
+# دي بتتعامل مع الـclause marker لما يكون في بداية السطر.
+#
+# مثلاً:
+#
+# 1( ( النص القانوني
+#
+# تتحول إلى:
+#
+# (1) النص القانوني
 CLAUSE_LINE_START = re.compile(r"^(\d{1,3})\s*[()]\s*[()]?\s*")
 
 
-""" 
-المشكلة اللي بتحلها؟
-
-الـPDF extraction ممكن يطلع الـclause marker بشكل غلط.
-
-مثلاً:
-
-)(2(
-
-بدل:
-
-(2)
-
-أو:
-
-2)(
-
-بدل:
-
-(2)
-
-فالـfunction بتوحدهم إلى:
-
-(2)
-"""
+# المشكلة اللي بتحلها؟
+#
+# الـPDF extraction ممكن يطلع الـclause marker بشكل غلط.
+#
+# مثلاً:
+#
+# )(2(
+#
+# بدل:
+#
+# (2)
+#
+# أو:
+#
+# 2)(
+#
+# بدل:
+#
+# (2)
+#
+# فالـfunction بتوحدهم إلى:
+#
+# (2)
 def canonicalize_clause_markers(text):
     """Rewrite broken clause markers like ')(2(' into canonical '(2)'."""
     # Line-start form "1( ( نص" -> "(1) نص" (most common broken form).
@@ -243,7 +231,7 @@ def canonicalize_clause_markers(text):
 # loop. It is idempotent: running it twice gives the same result.
 # It performs ONLY representation fixes, never wording changes.
 # ============================================================
-# ال main function لل cleaning بتشتغل علي كل سطر معموله extraction تطبق عليه الفانكشن ديه 
+# ال main function لل cleaning بتشتغل علي كل سطر معموله extraction تطبق عليه الفانكشن ديه
 def normalize_line(line):
     """Clean one extracted line: invisible chars, digits, clause parens, spaces."""
     # Remove invisible bidi/zero-width artifacts from extraction.
@@ -255,7 +243,7 @@ def normalize_line(line):
     # Collapse runs of spaces/tabs into single spaces and trim ends.
     # (Blank-line paragraph markers are handled by the caller before
     # this function ever sees them, so paragraphs survive.)
-    # توحيد المسافات 
+    # توحيد المسافات
     line = " ".join(line.split())
     return line
 
@@ -271,17 +259,15 @@ def normalize_line(line):
 # Nothing is paraphrased, translated, summarized, or deleted.
 # NOTE: no reading-order restoration is needed here, because the
 # English column is left-to-right and extracts in logical order.
-"""
-ليه function منفصلة؟
-
-لأن الـArabic عنده مشاكل إضافية، خصوصًا:
-
-Arabic digits
-Bidi / RTL
-Arabic clause markers
-
-أما الـEnglish فمحتاج cleaning أبسط.
-"""
+# ليه function منفصلة؟
+#
+# لأن الـArabic عنده مشاكل إضافية، خصوصًا:
+#
+# Arabic digits
+# Bidi / RTL
+# Arabic clause markers
+#
+# أما الـEnglish فمحتاج cleaning أبسط.
 # ============================================================
 def clean_english_line(line):
     """Clean one extracted English line (safe representation fixes only)."""
@@ -301,35 +287,33 @@ def clean_english_line(line):
 # document structure for the later chunking stage, without
 # changing any wording.
 # ============================================================
-"""
-بتعمل إيه؟
-
-تستخدم الـregex اللي تحت وتشوف:
-
-هل السطر يبدأ بـ clause marker؟
-
-مثلاً:
-
-(2) يجوز...
-
-ترجع:
-
-True
-
-لكن:
-
-ويجوز للمحكمة...
-
-ترجع:
-
-False
-
-المشكلة اللي بتحلها؟
-
-مهمة جدًا في الحفاظ على legal paragraph structure.
-
-لأن الـPDF ممكن يقسم clause واحدة على كذا physical line.
-"""
+# بتعمل إيه؟
+#
+# تستخدم الـregex اللي تحت وتشوف:
+#
+# هل السطر يبدأ بـ clause marker؟
+#
+# مثلاً:
+#
+# (2) يجوز...
+#
+# ترجع:
+#
+# True
+#
+# لكن:
+#
+# ويجوز للمحكمة...
+#
+# ترجع:
+#
+# False
+#
+# المشكلة اللي بتحلها؟
+#
+# مهمة جدًا في الحفاظ على legal paragraph structure.
+#
+# لأن الـPDF ممكن يقسم clause واحدة على كذا physical line.
 
 CLAUSE_AT_START = re.compile(r"^\s*(?:\(\d{1,4}\)|\d{1,4}\)|\([أ-ي]\))")
 
@@ -365,140 +349,130 @@ def assemble_article_text(lines):
         if line == "":
             # A blank PDF line ends the current paragraph.
             if current:
-                """
-                هنا بيحصل حاجتين.
-
-أولًا:
-
-" ".join(current)
-
-لو:
-
-current = [
-    "يلتزم المدين بالوفاء بالدين.",
-    "وذلك في الميعاد المحدد."
-]
-
-تصبح:
-
-"يلتزم المدين بالوفاء بالدين. وذلك في الميعاد المحدد."
-
-يعني بدل ما كل line تبقى منفصلة، بنجمعهم بمسافة.
-
-بعد كده:
-
-paragraphs.append(...)
-
-نضيف الـparagraph المكتملة إلى paragraphs.
-
-فتصبح:
-
-paragraphs = [
-    "يلتزم المدين بالوفاء بالدين. وذلك في الميعاد المحدد."
-]
-"""
+                #                 هنا بيحصل حاجتين.
+                #
+                # أولًا:
+                #
+                # " ".join(current)
+                #
+                # لو:
+                #
+                # current = [
+                #     "يلتزم المدين بالوفاء بالدين.",
+                #     "وذلك في الميعاد المحدد."
+                # ]
+                #
+                # تصبح:
+                #
+                # "يلتزم المدين بالوفاء بالدين. وذلك في الميعاد المحدد."
+                #
+                # يعني بدل ما كل line تبقى منفصلة، بنجمعهم بمسافة.
+                #
+                # بعد كده:
+                #
+                # paragraphs.append(...)
+                #
+                # نضيف الـparagraph المكتملة إلى paragraphs.
+                #
+                # فتصبح:
+                #
+                # paragraphs = [
+                #     "يلتزم المدين بالوفاء بالدين. وذلك في الميعاد المحدد."
+                # ]
                 paragraphs.append(" ".join(current))
                 # تصفير ال current  يعني الـparagraph القديمة خلصت، ابدأ paragraph جديدة من الصفر.
                 current = []
-                """
-                دي أهم حتة.
-
-هنا بنسأل سؤالين:
-
-السؤال الأول:
-current
-
-يعني:
-
-هل أنا بالفعل جوه paragraph؟
-
-السؤال الثاني:
-starts_new_clause(line)
-
-يعني:
-
-هل الـline الجديدة بتبدأ بـ clause marker؟
-
-زي:
-
-(2)
-
-أو:
-
-(3)
-
-أو:
-
-(أ)
-"""
+                #                 دي أهم حتة.
+                #
+                # هنا بنسأل سؤالين:
+                #
+                # السؤال الأول:
+                # current
+                #
+                # يعني:
+                #
+                # هل أنا بالفعل جوه paragraph؟
+                #
+                # السؤال الثاني:
+                # starts_new_clause(line)
+                #
+                # يعني:
+                #
+                # هل الـline الجديدة بتبدأ بـ clause marker؟
+                #
+                # زي:
+                #
+                # (2)
+                #
+                # أو:
+                #
+                # (3)
+                #
+                # أو:
+                #
+                # (أ)
         elif current and starts_new_clause(line):
             # A clause marker like (2) starts a new paragraph,
             # but only when we are already inside one (so the
             # very first line of the article never splits).
-            # لو الحاله ديه اتحققت 
-            """
-            بنقول:
-
-الـparagraph اللي كنت ببنيها خلصت.
-
-فنجمع سطورها ونحطها في paragraphs.
-"""
+            # لو الحاله ديه اتحققت
+            #             بنقول:
+            #
+            # الـparagraph اللي كنت ببنيها خلصت.
+            #
+            # فنجمع سطورها ونحطها في paragraphs.
             paragraphs.append(" ".join(current))
-            """
-            بنبدأ الـparagraph الجديدة بالـline الحالية.
-
-مثلاً:
-
-line = "(2) إذا تأخر المدين في الوفاء..."
-
-فتصبح:
-
-current = [
-    "(2) إذا تأخر المدين في الوفاء..."
-]
-
-وبعدين أي lines بعدها هتتضاف لنفس الـparagraph.
-لو لقيت clause mark زي (..)
-"""
+            #             بنبدأ الـparagraph الجديدة بالـline الحالية.
+            #
+            # مثلاً:
+            #
+            # line = "(2) إذا تأخر المدين في الوفاء..."
+            #
+            # فتصبح:
+            #
+            # current = [
+            #     "(2) إذا تأخر المدين في الوفاء..."
+            # ]
+            #
+            # وبعدين أي lines بعدها هتتضاف لنفس الـparagraph.
+            # لو لقيت clause mark زي (..)
             current = [line]
         else:
             # Ordinary continuation line of the current paragraph.
-            """
-            يعني لا:
-
-blank line
-ولا بداية clause جديدة
-
-إذن دي مجرد continuation للـparagraph الحالية.
-
-14. إضافة الـline
-current.append(line)
-
-مثلاً:
-
-current = [
-    "يلتزم المدين بالوفاء بالدين."
-]
-
-والـline الجديدة:
-
-"وذلك في الميعاد المحدد."
-
-فتصبح:
-
-current = [
-    "يلتزم المدين بالوفاء بالدين.",
-    "وذلك في الميعاد المحدد."
-]
-
-وبعدين في النهاية:
-
-" ".join(current)
-
-تبقى:
-
-يلتزم المدين بالوفاء بالدين. وذلك في الميعاد المحدد.
-"""
+            #             يعني لا:
+            #
+            # blank line
+            # ولا بداية clause جديدة
+            #
+            # إذن دي مجرد continuation للـparagraph الحالية.
+            #
+            # 14. إضافة الـline
+            # current.append(line)
+            #
+            # مثلاً:
+            #
+            # current = [
+            #     "يلتزم المدين بالوفاء بالدين."
+            # ]
+            #
+            # والـline الجديدة:
+            #
+            # "وذلك في الميعاد المحدد."
+            #
+            # فتصبح:
+            #
+            # current = [
+            #     "يلتزم المدين بالوفاء بالدين.",
+            #     "وذلك في الميعاد المحدد."
+            # ]
+            #
+            # وبعدين في النهاية:
+            #
+            # " ".join(current)
+            #
+            # تبقى:
+            #
+            # يلتزم المدين بالوفاء بالدين. وذلك في الميعاد المحدد.
             current.append(line)
 
     # Do not forget the final open paragraph.
@@ -509,36 +483,35 @@ current = [
     # هنا بنرجع كل الـparagraphs بعد فصلهم بـ: عن بعض
     return "\n\n".join(paragraphs)
 
-"""
-16. ليه assemble_article_text() مهمة للـRAG؟
 
-لأن الـPDF عنده physical lines، لكن أنت محتاج logical paragraphs.
-
-يعني:
-
-PDF layout
-   ↓
-line 1
-line 2
-line 3
-line 4
-
-مش بالضرورة معناها:
-
-paragraph 1
-paragraph 2
-paragraph 3
-paragraph 4
-
-فهي بتحاول ترجع structure منطقي للنص.
-
-وده مهم جدًا بعدين في:
-
-Chunking
-   ↓
-Embedding
-   ↓
-Retrieval
-
-لأنك مش عايز chunk يتقطع بطريقة عشوائية وسط clause قانونية.
-"""
+# 16. ليه assemble_article_text() مهمة للـRAG؟
+#
+# لأن الـPDF عنده physical lines، لكن أنت محتاج logical paragraphs.
+#
+# يعني:
+#
+# PDF layout
+#    ↓
+# line 1
+# line 2
+# line 3
+# line 4
+#
+# مش بالضرورة معناها:
+#
+# paragraph 1
+# paragraph 2
+# paragraph 3
+# paragraph 4
+#
+# فهي بتحاول ترجع structure منطقي للنص.
+#
+# وده مهم جدًا بعدين في:
+#
+# Chunking
+#    ↓
+# Embedding
+#    ↓
+# Retrieval
+#
+# لأنك مش عايز chunk يتقطع بطريقة عشوائية وسط clause قانونية.

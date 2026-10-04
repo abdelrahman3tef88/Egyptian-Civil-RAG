@@ -53,6 +53,15 @@ def parse_args(argv=None):
         default=None,
         help="where best_config.json is written",
     )
+    parser.add_argument(
+        "--recent",
+        type=int,
+        default=9,
+        help=(
+            "consider only the N most recent runs (by start_time) as the "
+            "current experiment batch (default: 9)"
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -66,12 +75,26 @@ def _to_int(value):
         return value
 
 
-def collect_candidates(mlflow, experiment_name, metric):
-    """Return the finished, phase-relevant runs ordered by the metric."""
+def collect_candidates(mlflow, experiment_name, metric, recent=9):
+    """Return the finished, phase-relevant runs, NEWEST batch only.
+
+    The tracking store keeps EVERY run ever written to this experiment
+    (earlier prompts, earlier backends, earlier top_k values). Ranking
+    all of them would let a stale run from a superseded configuration
+    win and be promoted as "the best configuration", which is
+    meaningless: it was measured with different settings.
+
+    So the runs are ordered by start_time (newest first - never by
+    run_id, which is random and carries no chronology) and only the
+    newest ``recent`` runs are treated as the current batch. The
+    selection then happens among those runs alone.
+
+    Runs are only ever READ here; nothing is deleted or modified.
+    """
     mlflow.set_experiment(experiment_name)
     runs = mlflow.search_runs(
         experiment_names=[experiment_name],
-        order_by=[f"metrics.{metric} DESC"],
+        order_by=["attributes.start_time DESC"],
         output_format="list",
     )
 
@@ -90,11 +113,20 @@ def collect_candidates(mlflow, experiment_name, metric):
         if any(key not in params for key in PHASE_PARAMS):
             continue
 
+        start_time = getattr(run.info, "start_time", None)
         candidates.append(
             {
                 "run_id": run.info.run_id,
                 "source_run_id": run.info.run_id,
                 "run_name": run.data.tags.get("mlflow.runName"),
+                "start_time": start_time,
+                "start_time_iso": (
+                    datetime.fromtimestamp(
+                        start_time / 1000, tz=timezone.utc
+                    ).isoformat()
+                    if isinstance(start_time, (int, float))
+                    else None
+                ),
                 "embedding_model": params.get("embedding_model"),
                 "embedding_dimension": _to_int(params.get("embedding_dimension")),
                 "chunk_size": _to_int(params.get("chunk_size")),
@@ -109,7 +141,6 @@ def collect_candidates(mlflow, experiment_name, metric):
                 # model that judged faithfulness.
                 "generation_model": params.get("generation_model"),
                 "faithfulness_judge_model": params.get("faithfulness_judge_model"),
-
                 # Which Faithfulness implementation produced the score.
                 "faithfulness_evaluator": params.get("faithfulness_evaluator"),
                 "faithfulness_backend": run.data.tags.get("faithfulness_backend"),
@@ -117,38 +148,76 @@ def collect_candidates(mlflow, experiment_name, metric):
             }
         )
 
+    # Only the newest `recent` runs form the current batch. The runs are
+    # already ordered newest-first by start_time (the filters above only
+    # remove rows, they never reorder), so this slice IS the batch.
+    total_collected = len(candidates)
+    batch = candidates[:recent]
+
     # Selection criterion: the highest faithfulness score, and nothing
     # else. Latency, cost, memory and model size are NOT part of this
     # ranking - they are deliberately excluded so the promoted
     # configuration is chosen on quality alone.
-    candidates.sort(
+    batch.sort(
         key=lambda candidate: (
             -candidate["faithfulness"],
             candidate["chunk_size"] if candidate["chunk_size"] is not None else 0,
             candidate["embedding_model"] or "",
         )
     )
-    return candidates
-
+    # How many finished runs the tracking store holds in total, so a
+    # truncated batch is visible in best_config.json instead of silent.
+    batch[0]["runs_in_experiment_total"] = total_collected
+    batch[0]["recent_batch_size"] = len(batch)
+    return batch
 
 
 def print_comparison(candidates, metric):
-    """Print the ranked comparison of every candidate run."""
-    print("=" * 92)
-    print(f"RUN COMPARISON (metric: {metric})")
-    print("=" * 92)
+    """Print the ranked comparison of the current batch.
+
+    The batch is listed in NEWEST-FIRST order (the order it was selected
+    in, by start_time), so the chronology is visible and can be checked
+    against the metric ranking.
+    """
+    print("=" * 118)
+    print(f"CURRENT BATCH - newest {len(candidates)} runs by start_time")
+    print("=" * 118)
+    print(
+        f"{'#':<3} {'run_id':<34} {'start_time':<15} {'start_time (UTC)':<26} "
+        f"{'embedding_model':<40} {'size':>5} {'overlap':>8} {metric:>9}"
+    )
+    print("-" * 118)
+    # Chronological order (newest first) for readability.
+    by_recency = sorted(
+        candidates,
+        key=lambda candidate: candidate.get("start_time") or 0,
+        reverse=True,
+    )
+    for position, candidate in enumerate(by_recency, start=1):
+        print(
+            f"{position:<3} {candidate['run_id']:<34} "
+            f"{candidate.get('start_time', ''):<15} "
+            f"{str(candidate.get('start_time_iso') or ''):<26} "
+            f"{candidate['embedding_model']:<40} "
+            f"{candidate['chunk_size']:>5} {candidate['chunk_overlap']:>8} "
+            f"{candidate['faithfulness']:>9.4f}"
+        )
+    print("=" * 118)
+    print(f"RANKED BY {metric} (selection order, highest first)")
+    print("=" * 118)
     print(
         f"{'#':<3} {'embedding_model':<42} {'size':>6} {'overlap':>8} "
-        f"{metric:>13}  {'run_id':<10}"
+        f"{metric:>13}  {'run_id':<34} {'start_time':<15}"
     )
-    print("-" * 92)
+    print("-" * 118)
     for position, candidate in enumerate(candidates, start=1):
         print(
             f"{position:<3} {candidate['embedding_model']:<42} "
             f"{candidate['chunk_size']:>6} {candidate['chunk_overlap']:>8} "
-            f"{candidate['faithfulness']:>13.4f}  {candidate['run_id'][:10]}"
+            f"{candidate['faithfulness']:>13.4f}  {candidate['run_id']:<34} "
+            f"{candidate.get('start_time', ''):<15}"
         )
-    print("=" * 92)
+    print("=" * 118)
 
 
 def main(argv=None):
@@ -171,7 +240,7 @@ def main(argv=None):
     print(f"MLflow experiment   : {experiment_name}")
     print(f"Selection metric    : {metric}\n")
 
-    candidates = collect_candidates(mlflow, experiment_name, metric)
+    candidates = collect_candidates(mlflow, experiment_name, metric, recent=args.recent)
     if not candidates:
         raise SystemExit(
             f"No finished runs with a {metric!r} metric were found in "
@@ -179,6 +248,11 @@ def main(argv=None):
             "  uv run python experiments/mlflow/run_experiments.py"
         )
 
+    print(
+        f"Considered runs      : newest {len(candidates)} "
+        f"(by start_time, of {candidates[0]['runs_in_experiment_total']} "
+        f"finished runs stored)"
+    )
     print_comparison(candidates, metric)
 
     best = candidates[0]
@@ -188,6 +262,8 @@ def main(argv=None):
             "selection_metric": metric,
             "experiment_name": experiment_name,
             "candidates_considered": len(candidates),
+            "runs_in_experiment_total": candidates[0]["runs_in_experiment_total"],
+            "recent_batch_size": candidates[0]["recent_batch_size"],
             "selected_at": datetime.now(timezone.utc).isoformat(),
         }
     )
@@ -205,9 +281,14 @@ def main(argv=None):
         "top_k",
         "faithfulness",
         "golden_dataset_version",
+        "start_time_iso",
         "run_id",
     ):
         print(f"  {key:<24} : {payload.get(key)}")
+    print(
+        f"  {'batch (newest N)':<24} : {payload.get('recent_batch_size')}"
+        f" of {payload.get('runs_in_experiment_total')} finished runs"
+    )
     print("-" * 92)
     print(f"Written to: {output_path}")
     print(
@@ -223,4 +304,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

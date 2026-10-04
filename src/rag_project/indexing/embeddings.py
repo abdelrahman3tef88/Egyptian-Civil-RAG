@@ -32,9 +32,7 @@ def create_embedding_model():
         # Name of the embedding model from Hugging Face
         model_name=CONFIG["embedding_model"],
         # Model configuration (device resolved from the config policy)
-        model_kwargs={
-            "device": _resolve_device(CONFIG.get("device", "auto"))
-        },
+        model_kwargs={"device": _resolve_device(CONFIG.get("device", "auto"))},
         # Encoding configuration
         encode_kwargs={
             "normalize_embeddings": CONFIG.get("normalize_embeddings", True)

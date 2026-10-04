@@ -41,28 +41,27 @@ PDF
 JSON records
 """
 
-"""Bilingual PDF extraction: two-column split, reading order, article reconstruction.
-
-Responsibilities of this module:
-  - extract BOTH columns of each page using dynamic coordinates
-    (the PDF is bilingual: Arabic right, English left)
-  - restore the reading order of raw Arabic lines (see below)
-  - detect real Arabic article headers (مادة + valid number)
-  - detect real English article headers (Article + valid number)
-  - rebuild complete articles across page boundaries with a simple
-    state tracker, one per language, then merge the two sides by the
-    SAME article_number into one bilingual record per article:
-        {
-            "article_number": 1,
-            "text": {"ar": "...", "en": "..."},
-            "page_start": 1,
-            "page_end": 1,
-            "is_repealed": False
-        }
-
-Neither language's text is ever paraphrased, translated, or rewritten:
-the English column is the translation printed in the source PDF itself.
-"""
+# Bilingual PDF extraction: two-column split, reading order, article reconstruction.
+#
+# Responsibilities of this module:
+#   - extract BOTH columns of each page using dynamic coordinates
+#     (the PDF is bilingual: Arabic right, English left)
+#   - restore the reading order of raw Arabic lines (see below)
+#   - detect real Arabic article headers (مادة + valid number)
+#   - detect real English article headers (Article + valid number)
+#   - rebuild complete articles across page boundaries with a simple
+#     state tracker, one per language, then merge the two sides by the
+#     SAME article_number into one bilingual record per article:
+#         {
+#             "article_number": 1,
+#             "text": {"ar": "...", "en": "..."},
+#             "page_start": 1,
+#             "page_end": 1,
+#             "is_repealed": False
+#         }
+#
+# Neither language's text is ever paraphrased, translated, or rewritten:
+# the English column is the translation printed in the source PDF itself.
 
 import re
 
@@ -100,30 +99,28 @@ from rag_project.ingestion import cleaning
 # four letters matches these fragmented forms and the normal form
 # with ONE pattern, while the whole-line anchor still rejects body
 # text that merely mentions the word.
-"""
-دي أهم Regex لاكتشاف:
-
-مادة 1
-مادة (1)
-مادة ( 1 )
-مادة ١
-ما دة 439
-م ادة 660
-ماد ة 627
-ليه محتاجينها؟
-
-لأننا لازم نفرق بين:
-
-مادة 10
-
-اللي هي header حقيقي،
-
-وبين:
-
-ويحدد القانون مادة 10 من ...
-
-اللي دي مش header.
-"""
+# دي أهم Regex لاكتشاف:
+#
+# مادة 1
+# مادة (1)
+# مادة ( 1 )
+# مادة ١
+# ما دة 439
+# م ادة 660
+# ماد ة 627
+# ليه محتاجينها؟
+#
+# لأننا لازم نفرق بين:
+#
+# مادة 10
+#
+# اللي هي header حقيقي،
+#
+# وبين:
+#
+# ويحدد القانون مادة 10 من ...
+#
+# اللي دي مش header.
 # ============================================================
 ARTICLE_HEADER_PATTERN = re.compile(
     r"^\s*م\s*ا\s*د\s*ة\s*[()\s]*(\d{1,4})\s*[()\s]*[.:،]?\s*$"
@@ -131,39 +128,37 @@ ARTICLE_HEADER_PATTERN = re.compile(
 
 # The English column writes headers as "Article 12". Used ONLY to
 # cross-check our Arabic article numbers during validation.
-"""
-دي بتدور على:
-
-Article 10 مثلا
-
-في أي مكان داخل السطر.
-
-مهم: دي مش بالضرورة بتحدد إن ده header.
-
-هي بتقول فقط:
-
-لاقيلي أي occurrence لـ Article N.
-
-مستخدمة للـvalidation.
-
-مثلاً:
-
-This is provided under Article 554.
-
-هتلاقي:
-
-554
-
-لكن ده مش معناه إن 554 header.
-تستخدم لل validation فقط 
-"""
+# دي بتدور على:
+#
+# Article 10 مثلا
+#
+# في أي مكان داخل السطر.
+#
+# مهم: دي مش بالضرورة بتحدد إن ده header.
+#
+# هي بتقول فقط:
+#
+# لاقيلي أي occurrence لـ Article N.
+#
+# مستخدمة للـvalidation.
+#
+# مثلاً:
+#
+# This is provided under Article 554.
+#
+# هتلاقي:
+#
+# 554
+#
+# لكن ده مش معناه إن 554 header.
+# تستخدم لل validation فقط
 ENGLISH_ARTICLE_PATTERN = re.compile(r"\bArticle\s+(\d+)\b")
 
 # A real English article header is a WHOLE line of the form
 # "Article 12" (an optional trailing dot / parenthesis is tolerated).
 # The anchor is what separates a real header from a cross-reference
 # inside a sentence such as "provided for in Article 563".
-# نفس الكلام للي في ARTICLE_HEADER_PATTERN بس بالانجلش بدل "مادة  هتكون "Article    
+# نفس الكلام للي في ARTICLE_HEADER_PATTERN بس بالانجلش بدل "مادة  هتكون "Article
 ENGLISH_HEADER_PATTERN = re.compile(r"^\s*Article\s+(\d{1,4})\s*[\.\):]?\s*$")
 
 
@@ -198,49 +193,46 @@ ENGLISH_HEADER_PATTERN = re.compile(r"^\s*Article\s+(\d{1,4})\s*[\.\):]?\s*$")
 #   c) leave all other characters exactly as extracted
 # After this, header detection scores ~86% agreement with the
 # English column ground truth (rest is page-boundary tolerance).
-"""
-def _reverse_text(match):
-
-دي function صغيرة جدًا.
-
-وظيفتها:
-تعكس sequence الأرقام فقط.
-
-مثلاً:
-
-01
-
-تصبح:
-10
-
-return match.group(0)[::-1]
-group(0) = النص اللي الـregex لاقاه وماسكه
-
-و:
-
-[::-1]
-بيعكسه.
-
-ليه؟
-
-لأن الـPDF عند استخراج العربي بيطلع أحيانًا الأرقام mirrored بسبب الـRTL/BiDi.
-"""
+# def _reverse_text(match):
+#
+# دي function صغيرة جدًا.
+#
+# وظيفتها:
+# تعكس sequence الأرقام فقط.
+#
+# مثلاً:
+#
+# 01
+#
+# تصبح:
+# 10
+#
+# return match.group(0)[::-1]
+# group(0) = النص اللي الـregex لاقاه وماسكه
+#
+# و:
+#
+# [::-1]
+# بيعكسه.
+#
+# ليه؟
+#
+# لأن الـPDF عند استخراج العربي بيطلع أحيانًا الأرقام mirrored بسبب الـRTL/BiDi.
 # ============================================================
 def _reverse_text(match):
     """Reverse the matched digit run (used as an re.sub replacement)."""
     # re.sub passes a match object; group(0) is the matched digits.
     return match.group(0)[::-1]
 
-"""
-وظيفتها:
-تصلح ترتيب line عربي طالع من الـPDF بترتيب بصري غلط.
 
-مثلاً الـPDF ممكن يطلع:
-المصري المدني القانون
-
-لكن الصحيح:
-القانون المدني المصري
-"""
+# وظيفتها:
+# تصلح ترتيب line عربي طالع من الـPDF بترتيب بصري غلط.
+#
+# مثلاً الـPDF ممكن يطلع:
+# المصري المدني القانون
+#
+# لكن الصحيح:
+# القانون المدني المصري
 def restore_reading_order(line):
     """Turn one raw visual-order Arabic line into logical reading order."""
     # Split the line into words (whitespace split keeps it simple).
@@ -255,7 +247,7 @@ def restore_reading_order(line):
         # Reverse each digit run inside the word.
         # Python's \d also matches Arabic-Indic digits, and
         # cleaning.normalize_arabic_digits converts them later.
-        # تتشيك كل كلمه هل فيها digits او ارقام متلغبط لو اة طبق الفانكشن _reverse_text علي الكلمه 
+        # تتشيك كل كلمه هل فيها digits او ارقام متلغبط لو اة طبق الفانكشن _reverse_text علي الكلمه
         word = re.sub(r"\d+", _reverse_text, word)
         # ثم خزن الكلمه في restored_words
         restored_words.append(word)
@@ -290,12 +282,12 @@ def extract_arabic_lines(page):
     page_width = page.rect.width
     # The horizontal midpoint separates Arabic (right) from English (left).
     # تحديد المنتصف
-    # تاخد عرض الصفحه الحقيقي دة وتقسمه علي اتنين 
+    # تاخد عرض الصفحه الحقيقي دة وتقسمه علي اتنين
     mid_x = page_width / 2
     # Clip rectangle covering ONLY the right half of the page.
     # يعني استخرج كل العمود اليمين فقط للي هو العربي
     # معايا mid_x عرض الصفحه ومعايا 0 دة الجزء اليمين ومعايا ال height بتاع الصفحه كلها
-    # كدة ال right_column اصبح clip rectangle column اقدر اخد منه ال text 
+    # كدة ال right_column اصبح clip rectangle column اقدر اخد منه ال text
     right_column = pymupdf.Rect(mid_x, 0, page_width, page.rect.height)
     # Extract text inside the clip, sorted top-to-bottom by Y coordinate.
     text = page.get_text("text", clip=right_column, sort=True)
@@ -309,7 +301,7 @@ def extract_arabic_lines(page):
         # Keep empty lines as paragraph markers (later cleaning
         # collapses repeated whitespace but never deletes them
         # before assembly), and clean everything else.
-        # لو ال line is empty 
+        # لو ال line is empty
         # هنخزنه لأن الـblank line ممكن تمثل paragraph boundary.
         if restored.strip() == "":
             lines.append("")
@@ -342,31 +334,29 @@ def extract_english_lines(page):
     # The horizontal midpoint separates the two columns (dynamic).
     mid_x = page.rect.width / 2
     # Get every word on the page with its coordinates and line IDs.
-    """
-    ليه مش بنستخدم page.get_text("text") وخلاص؟
-
-لأن الـPDF أحيانًا يعمل:
-responsibleArticle5 for prejudice
-
-بدل:
-
-responsible
-Article 5
-
-فـplain text stream ممكن يدمج الـheader مع الـbody.
-
-عشان كده هنا بنستخدم:
-words = page.get_text("words")
-اللي بيرجع الكلمات مع coordinates.
-علشان كدة هنستخرج كلمه كلمه في الانجلش وبعدها نجمعهم تاني 
-"""
+    #     ليه مش بنستخدم page.get_text("text") وخلاص؟
+    #
+    # لأن الـPDF أحيانًا يعمل:
+    # responsibleArticle5 for prejudice
+    #
+    # بدل:
+    #
+    # responsible
+    # Article 5
+    #
+    # فـplain text stream ممكن يدمج الـheader مع الـbody.
+    #
+    # عشان كده هنا بنستخدم:
+    # words = page.get_text("words")
+    # اللي بيرجع الكلمات مع coordinates.
+    # علشان كدة هنستخرج كلمه كلمه في الانجلش وبعدها نجمعهم تاني
     words = page.get_text("words")
 
     # Group the left-column words by their PDF line number.
     lines_by_id = {}
     for word in words:
         # Keep only words that start inside the left (English) column.
-        # لو الكلمه اكبر من mid_x يبقي الكلمه عربي ف تجاهلها 
+        # لو الكلمه اكبر من mid_x يبقي الكلمه عربي ف تجاهلها
         if word[0] >= mid_x:
             continue
         # Skip Arabic glyphs that sit close to the column edge.
@@ -375,39 +365,35 @@ words = page.get_text("words")
         if "\u0600" <= first_letter <= "\u06ff":
             continue
         # The (block number, line number) pair identifies one PDF line.
-        """
-        تحديد line
-line_id = (word[5], word[6])
-
-الـPDF بيدي كل word معلومات عن:
-
-block
-line
-
-فبنستخدمهم عشان نعرف:
-الكلمات دي كانت في نفس السطر ولا لا ؟
-"""
+        #         تحديد line
+        # line_id = (word[5], word[6])
+        #
+        # الـPDF بيدي كل word معلومات عن:
+        #
+        # block
+        # line
+        #
+        # فبنستخدمهم عشان نعرف:
+        # الكلمات دي كانت في نفس السطر ولا لا ؟
         line_id = (word[5], word[6])
-        # تجميع كلمات كل line 
-        #line 1 → words
-        #line 2 → words
-        #line 3 → words
-        # كل كلمه بستخرجها بدبها id هي تبع ال line كذا 
+        # تجميع كلمات كل line
+        # line 1 → words
+        # line 2 → words
+        # line 3 → words
+        # كل كلمه بستخرجها بدبها id هي تبع ال line كذا
         lines_by_id.setdefault(line_id, []).append(word)
 
     lines = []
     # Sort the PDF lines by their Y coordinate: top to bottom.
-    """
-    ترتيب ال lines حسب coordinate y 
-
-    أعلى الصفحة
-   ↓
-السطر الأول 
-السطر الثاني
-السطر الثالث
-   ↓
-أسفل الصفحة
-"""
+    #     ترتيب ال lines حسب coordinate y
+    #
+    #     أعلى الصفحة
+    #    ↓
+    # السطر الأول
+    # السطر الثاني
+    # السطر الثالث
+    #    ↓
+    # أسفل الصفحة
     for line_id in sorted(lines_by_id, key=lambda k: lines_by_id[k][0][1]):
         # Sort the words of this line by X: left to right.
         # ترتيب الكلمات داخل ال line    بنرتب حسب X coordinate.
@@ -420,31 +406,30 @@ line
         # Join the words with single spaces.
         line = " ".join(parts)
         # Apply only safe cleaning (invisible chars + spaces).
-        # تنظيف خاص بالانجلش lines فقط 
+        # تنظيف خاص بالانجلش lines فقط
         lines.append(cleaning.clean_english_line(line))
     return lines
 
-"""
-دي بتجيب أرقام الـArticles الموجودة في صفحة English.
 
-مثلاً:
-
-Article 10
-...
-Article 11
-...
-Article 12
-
-ترجع:
-
-{10, 11, 12}
-
-استخدامها الأساسي:
-
-validation / cross-check.
-
-يعني نقدر نقارن English مع Arabic.
-"""
+# دي بتجيب أرقام الـArticles الموجودة في صفحة English.
+#
+# مثلاً:
+#
+# Article 10
+# ...
+# Article 11
+# ...
+# Article 12
+#
+# ترجع:
+#
+# {10, 11, 12}
+#
+# استخدامها الأساسي:
+#
+# validation / cross-check.
+#
+# يعني نقدر نقارن English مع Arabic.
 def english_article_numbers(page):
     """Collect the set of 'Article N' numbers found on one English page."""
     numbers = set()
@@ -488,36 +473,35 @@ ENGLISH_INLINE_HEADER_PATTERN = re.compile(
     r"^\s*(?<![A-Za-z])[Aa]?rticle(?!s)\s*(\d{1,4})\b\s*(.*)$"
 )
 
-"""
-أحيانًا English بيطلع:
 
-Article 277 If the option belongs to the debtor...
-
-يعني الـheader والـbody في نفس السطر.
-الـnormal header detector مش هيعرفه، لأن السطر مش:
-
-Article 277
-
-فقط.
-
-الـfunction ترجع:
-(number, rest_of_line)
-
-مثلاً:
-
-(
-    277,
-    "If the option belongs to the debtor..."
-)
-
-وبالتالي:
-
-277 → header
-باقي الجملة → body
-
-فالفانكشن بتجهز للnormal header detector رقم ال article header بشكل منفصل بحيث يقدر يشتغل عليه علطول 
-وبالتالي اال normal header detector يعرف ان احنا حاليا شغالين علي article 277
-"""
+# أحيانًا English بيطلع:
+#
+# Article 277 If the option belongs to the debtor...
+#
+# يعني الـheader والـbody في نفس السطر.
+# الـnormal header detector مش هيعرفه، لأن السطر مش:
+#
+# Article 277
+#
+# فقط.
+#
+# الـfunction ترجع:
+# (number, rest_of_line)
+#
+# مثلاً:
+#
+# (
+#     277,
+#     "If the option belongs to the debtor..."
+# )
+#
+# وبالتالي:
+#
+# 277 → header
+# باقي الجملة → body
+#
+# فالفانكشن بتجهز للnormal header detector رقم ال article header بشكل منفصل بحيث يقدر يشتغل عليه علطول
+# وبالتالي اال normal header detector يعرف ان احنا حاليا شغالين علي article 277
 def split_english_inline_header(line):
     """Return (number, rest_of_line) for an inline English header line."""
     line = cleaning.clean_english_line(line)
@@ -540,14 +524,14 @@ def detect_article_header(line):
     line = cleaning.normalize_line(line)
     # Anchored match: the WHOLE line must be "مادة + number".
     # لو ال line للي شغال عليه بيمثل مثلا مادة 5
-    # اذن هو بيماتش match 
+    # اذن هو بيماتش match
     # يبقي هات واستخرج رقم المادة دة    5
     match = ARTICLE_HEADER_PATTERN.match(line)
     if match:
         # Group 1 is the number, e.g. "54" -> 54 as an integer.
         return int(match.group(1))
     # Not a header: ordinary legal text (or a mention of مادة).
-    # لو مش بيماتش not match 
+    # لو مش بيماتش not match
     # اذن دة body line عادي
     return None
 
@@ -592,7 +576,9 @@ def detect_english_article_header(line):
 # page_end is derived from the LAST line that actually contains
 # text, so a multi-page article reports its true ending page.
 # ============================================================
-def _build_article(article_number, ar_entries, en_entries, page_start, english_text=None):
+def _build_article(
+    article_number, ar_entries, en_entries, page_start, english_text=None
+):
     """Create one structured bilingual article record from its lines."""
     # Separate the two languages so no text can cross over.
     ar_lines = []
@@ -606,10 +592,10 @@ def _build_article(article_number, ar_entries, en_entries, page_start, english_t
     # Find the last page that contributed real ARABIC text
     # (= page_end, the source page range of the legal article).
     page_end = page_start
-    # هتلوب في كل صفحه علي ال lines بس بالعكس 
-    # اذن انا هاخد اخر line في الصفحه واتشيك 
+    # هتلوب في كل صفحه علي ال lines بس بالعكس
+    # اذن انا هاخد اخر line في الصفحه واتشيك
     for page_number, line in reversed(ar_entries):
-        # لو ال line is not empty 
+        # لو ال line is not empty
         # يبقى دي آخر صفحة فيها محتوى حقيقي للمادة. وتكون حددت ال page end
         if line != "":
             page_end = page_number  # Last page with actual content.
@@ -645,37 +631,36 @@ def _build_article(article_number, ar_entries, en_entries, page_start, english_t
 # issuing decree / title). After the first header it belongs to the
 # open article, together with its page number so page_end can grow.
 # ============================================================
-"""
-دي function مساعدة.
-
-قبل أول Article header:
-
-Egyptian Civil Code
-Presidential Decree...
-
-ده اسمه:
-preamble
-"""
+# دي function مساعدة.
+#
+# قبل أول Article header:
+#
+# Egyptian Civil Code
+# Presidential Decree...
+#
+# ده اسمه:
+# preamble
 def _add_text_line(page_number, line, current_number, current_entries, preamble_lines):
     """Give one text line to the open article, or to the preamble."""
-    # لو ال line للي شغالين عليه دلوقتي للي هو اول line في ال pdf كله للي 
-    # للي هو قبل اول header 
-    #ة يسمي preamble ليس ضمن ال article نفسه للي امسه open article  
+    # لو ال line للي شغالين عليه دلوقتي للي هو اول line في ال pdf كله للي
+    # للي هو قبل اول header
+    # ة يسمي preamble ليس ضمن ال article نفسه للي امسه open article
     if current_number is None:
         # No article opened yet: this is preamble text (title, decree).
         preamble_lines.append(line)
     else:
         # Inside an article: remember the page so page_end can update.
         current_entries.append((page_number, line))
-"""
-قبل أول مادة
-   ↓
-preamble
 
-بعد أول مادة
-   ↓
-current article
-"""
+
+# قبل أول مادة
+#    ↓
+# preamble
+#
+# بعد أول مادة
+#    ↓
+# current article
+
 
 # ============================================================
 # Reconstruct Complete Articles Across All Pages
@@ -701,743 +686,741 @@ current article
 # is kept as body text and recorded as a diagnostic - never lost,
 # never allowed to split an article incorrectly.
 # ============================================================
-"""
-الفكرة كلها أن الـPDF مش بيقول لنا صراحة:
-
-"السطور دي كلها Article 277"
-
-إحنا لازم نستنتج ده من الـheaders، ونحافظ على حالة الـArticle الحالية أثناء المرور على كل الصفحات.
-
-1. الفكرة العامة
-
-عندنا سطور بالشكل:
-
-Page 10:
-مادة (54)
-يلتزم الطرف الأول...
-ويجب عليه...
-
-Page 11:
-ولا يجوز له...
-مادة (55)
-يجوز للطرف الثاني...
-
-الـfunction تمشي عليهم بالترتيب، وتستخدم state:
-
-current_number
-current_entries
-current_start_page
-
-يعني دائمًا عندها سؤال:
-
-أنا حاليًا بجمع أي Article؟
-
-مثلاً:
-
-current_number = 54
-
-معناه:
-
-أنا حاليًا داخل Article 54.
-
-2. بداية الـfunction
-def _collect_articles(pages_lines, is_english):
-
-بتستقبل:
-
-pages_lines
-
-قائمة الصفحات، وكل صفحة فيها رقم الصفحة والسطور:
-
-[
-    (1, ["مادة (1)", "النص...", "..."]),
-    (2, ["تكملة النص...", "مادة (2)", "..."]),
-]
-is_english
-
-يحدد إحنا بنجمع:
-
-Arabic
-
-ولا:
-
-English
-
-لأن الـheader detector مختلف.
-
-3. collected
-collected = {}
-
-دي النتيجة النهائية.
-
-هتكون تقريبًا:
-
-{
-    54: (entries, 10),
-    55: (entries, 11),
-    56: (entries, 12)
-}
-
-يعني:
-
-Article 54
-    ↓
-entries الخاصة بيه
-    ↓
-بدأ في page 10
-4. rejected
-rejected = []
-
-دي للـdiagnostics.
-
-لو قابلنا مثلًا:
-
-Article 901 has been delivered to him.
-
-لكن إحنا حاليًا في:
-
-Article 884
-
-فممكن الرقم 901 يكون cross-reference مش Header حقيقي.
-
-الكود يحتفظ بالسطر ويسجله في:
-
-rejected
-
-علشان نقدر نراجعه بعدين.
-
-5. الـState
-
-عندنا:
-
-current_number = None
-
-في البداية:
-
-مفيش Article مفتوحة.
-
-ثم:
-
-current_entries = []
-
-دي هتحتوي body الخاص بالـArticle الحالية.
-
-و:
-
-current_start_page = 0
-
-صفحة بداية الـArticle.
-
-6. المرور على الصفحات
-for page_number, lines in pages_lines:
-
-يعني:
-
-هات كل صفحة بالترتيب.
-
-مثلاً:
-
-page_number = 127
-lines = [...]
-
-وبعدها:
-
-for index, line in enumerate(lines):
-
-يمشي على كل line.
-
-index مهم جدًا بعدين في الـEnglish lookahead.
-
-7. الـblank line
-if line == "":
-    if current_number is not None:
-        current_entries.append((page_number, line))
-    continue
-
-لو السطر فاضي:
-
-""
-
-مش معناها إن الـArticle انتهت.
-
-دي ممكن تكون مجرد paragraph separator.
-
-فلو إحنا داخل:
-
-current_number = 277
-
-نضيف الـblank line للـentries:
-
-current_entries.append((page_number, ""))
-
-ثم:
-
-continue
-
-يعني:
-
-خلصنا التعامل مع السطر ده، روح للسطر اللي بعده.
-
-8. Detect الـHeader
-
-هنا بيحدد هل السطر Header أم لا.
-
-rest_of_line = ""
-
-دي مهمة للـEnglish.
-
-لأن ممكن يكون:
-
-Article 277 If the option belongs to the debtor...
-لو English
-if is_english:
-    header_number = detect_english_article_header(line)
-
-أولًا يجرب الـnormal detector.
-
-لو لم يجد:
-
-if header_number is None:
-
-يجرب:
-
-header_number, rest_of_line = split_english_inline_header(line)
-
-فتتحول:
-
-Article 277 If the option belongs to the debtor...
-
-إلى:
-
-header_number = 277
-rest_of_line = "If the option belongs to the debtor..."
-9. لو Arabic
-else:
-    header_number = detect_article_header(line)
-
-مثلاً:
-
-مادة (54)
-
-ترجع:
-
-header_number = 54
-
-ولو:
-
-ويجب على الطرف الأول...
-
-ترجع:
-
-header_number = None
-10. أهم جزء: الـMonotonic Guard
-
-بعد ما نعرف رقم الـheader:
-
-if header_number is not None:
-
-نسأل:
-
-هل الرقم الجديد أكبر من الـArticle الحالية؟
-
-if current_number is None or header_number > current_number:
-
-مثلاً:
-
-current_number = 54
-header_number = 55
-
-ده منطقي:
-
-54 → 55
-
-إذن:
-
-Header حقيقي غالبًا.
-
-لكن:
-
-current_number = 54
-header_number = 40
-
-ده رجوع للخلف:
-
-54 → 40
-
-غالبًا مش Article جديدة، وإنما cross-reference.
-
-11. ليه الـMonotonic Guard مهم؟
-
-تخيل:
-
-مادة (54)
-النص...
-Article 20 mentioned in this provision.
-النص...
-مادة (55)
-
-لو parser اعتبر:
-
-Article 20
-
-Header حقيقي، هيعمل:
-
-54 → 20
-
-وهيبوظ الـstate.
-
-عشان كده:
-
-header_number > current_number
-
-شرط أساسي.
-
-12. لكن الـEnglish عنده مشكلة إضافية
-
-هنا الجزء المعقد:
-
-if is_english and current_number is not None:
-
-ليه؟
-
-لأن الـEnglish ممكن يكون فيه:
-
-Article 901 has been delivered to him.
-
-داخل Article 884.
-
-وفي نفس الصفحة بعده:
-
-Article 885
-
-لو اعتبرنا 901 Header:
-
-884 → 901
-
-هنقفز فوق:
-
-885
-886
-887
-...
-900
-
-وده خطأ كبير.
-
-13. الـLookahead
-
-الكود يبص لقدام:
-
-for later_line in lines[index + 1 :]:
-
-يعني:
-
-بص على السطور اللي بعد السطر الحالي في نفس الصفحة.
-
-مثلاً إحنا عند:
-
-Article 901 has been delivered...
-
-والـcurrent:
-
-884
-
-بعده موجود:
-
-Article 885
-
-فيحسب:
-
-later_number = 885
-
-ثم:
-
-current_number < later_number < header_number
-
-يعني:
-
-884 < 885 < 901
-
-صحيح.
-
-إذن:
-
-smaller_follows = True
-14. النتيجة
-
-لو:
-
-smaller_follows:
-
-نعمل:
-
-header_number = None
-
-يعني:
-
-اعتبر Article 901 مش Header.
-
-بل body text.
-
-وبالتالي السطر:
-
-Article 901 has been delivered to him.
-
-يدخل في:
-
-current_entries
-
-بدل ما يفتح Article 901.
-
-ثم بعده:
-
-Article 885
-
-يُعتبر Header حقيقي.
-
-فتبقى السلسلة:
-
-884
- ↓
-885
-
-وليس:
-
-884
- ↓
-901 ❌
-15. لو Header حقيقي، نعمل إيه؟
-
-لو الرقم valid:
-
-54 → 55
-
-أول حاجة:
-
-if current_number is not None:
-    collected[current_number] = (
-        current_entries,
-        current_start_page
-    )
-
-يعني:
-
-اقفل الـArticle القديمة واحفظها.
-
-مثلاً:
-
-current_number = 54
-
-فتتحفظ:
-
-collected[54] = (
-    current_entries,
-    10
-)
-16. افتح Article جديدة
-
-بعد كده:
-
-current_number = header_number
-
-مثلاً:
-
-current_number = 55
-
-ثم:
-
-current_entries = []
-
-يعني:
-
-ابدأ body جديدة من الصفر.
-
-ثم:
-
-current_start_page = page_number
-
-يعني:
-
-Article 55 بدأت في الصفحة الحالية.
-
-17. لو الـHeader والـBody في نفس السطر
-
-دي نقطة مهمة جدًا للـEnglish.
-
-لو السطر:
-
-Article 277 If the option belongs to the debtor...
-
-فالـsplit أعطانا:
-
-header_number = 277
-rest_of_line = "If the option belongs to the debtor..."
-
-بعد فتح Article 277:
-
-if rest_of_line.strip() != "":
-    current_entries.append(
-        (page_number, rest_of_line)
-    )
-
-فتصبح:
-
-Article 277
-    ↓
-If the option belongs to the debtor...
-
-يعني الـheader نفسه لا يدخل الـbody، لكن الجزء الذي بعده يدخل.
-
-18. ليه continue؟
-continue
-
-مهمة جدًا.
-
-لأننا بعد ما اكتشفنا Header وعالجناه، مش عايزين السطر كله يتضاف مرة ثانية كـbody.
-
-بدون continue ممكن يحصل:
-
-Article 277
-Article 277 If the option...
-
-داخل الـentries.
-
-لكن continue تقول:
-
-خلاص، عالجنا السطر كـHeader، روح للسطر التالي.
-
-19. لو الرقم Backward أو Repeated
-
-الجزء:
-
-elif current_number is None or header_number <= current_number:
-
-مثلاً:
-
-current_number = 277
-header_number = 100
-
-أو:
-
-current_number = 277
-header_number = 277
-
-هنا مش هنفتح Article جديدة.
-
-بل:
-
-rejected.append((page_number, line))
-
-نسجلها كـdiagnostic.
-
-لكن لاحظ النقطة المهمة جدًا: السطر مش بيضيع.
-
-بعد الـif/elif، الكود يوصل إلى:
-
-if current_number is not None:
-    current_entries.append((page_number, line))
-
-فيضيف السطر نفسه إلى الـbody.
-
-إذن:
-
-Article 277
-    ↓
-"Article 100 is also mentioned..."
-
-يبقى داخل Article 277.
-
-وده بالضبط معنى التعليق:
-
-never lost, never allowed to split an article incorrectly
-
-20. النص العادي
-
-لو السطر مش Header أصلاً:
-
-The debtor shall...
-
-فيوصل إلى:
-
-if current_number is not None:
-    current_entries.append((page_number, line))
-
-فيضاف للـArticle الحالية.
-
-مثلاً:
-
-Article 277
-    ↓
-If the option belongs...
-    ↓
-The debtor shall...
-    ↓
-The creditor may...
-
-كلهم في:
-
-current_entries
-21. أهم نقطة: نهاية الصفحة لا تقفل الـArticle
-
-ودي من أهم أفكار الكود.
-
-افترض:
-
-Page 127
-Article 277
-If the option belongs...
-The debtor may...
-
-انتهت الصفحة.
-
-هل نعمل:
-
-current_number = None
-
-لا.
-
-نفضل:
-
-current_number = 277
-
-ثم الصفحة التالية:
-
-Page 128
-...
-The creditor may...
-The obligation ends...
-Article 278
-
-فالـ... في Page 128 تضاف إلى:
-
-Article 277
-
-إلى أن يظهر:
-
-Article 278
-
-وقتها فقط:
-
-277 → finalize
-278 → open
-
-وده اللي يسمح بإعادة بناء Article ممتدة على أكثر من صفحة.
-
-22. نهاية الـDocument
-
-في النهاية:
-
-if current_number is not None:
-    collected[current_number] = (
-        current_entries,
-        current_start_page
-    )
-
-ليه؟
-
-لأن آخر Article في الملف مفيش Header بعدها يخبرنا:
-
-اقفل الـArticle.
-
-مثلاً آخر الملف:
-
-Article 100
-The debtor shall...
-The creditor may...
-
-خلص الـPDF.
-
-لازم إحنا نقول:
-
-خلاص، Article 100 انتهت.
-
-فنعمل finalization يدوي.
-
-23. وفي النهاية
-return collected, rejected
-
-ترجع حاجتين:
-
-collected
-
-الـArticles اللي اتجمعت:
-
-{
-    277: (entries, 127),
-    278: (entries, 128),
-    279: (entries, 128)
-}
-rejected
-
-الـheaders candidates اللي رفضناها:
-
-[
-    (127, "Article 901 has been delivered to him."),
-    ...
-]
-
-وده مفيد جدًا للـdiagnostics والتحقق من جودة extraction.
-
-الخلاصة الكبيرة
-
-فكر في الـfunction كأنها موظف ماسك ملف وبيحدد المادة الحالية:
-
-                ┌──────────────────────┐
-                │ current_article      │
-                │      = 277           │
-                └──────────┬───────────┘
-                           │
-          ┌────────────────┼────────────────┐
-          ↓                ↓                ↓
-      body line        blank line       cross-reference
-          │                │                │
-          └────────────────┴────────────────┘
-                           ↓
-                    تضاف للـ277
-
-ولما يظهر:
-
-Article 278
-
-يعمل:
-
-        Article 277
-             ↓
-          FINALIZE
-             ↓
-        collected[277]
-             ↓
-        Article 278
-             ↓
-           OPEN
-             ↓
-      current_number = 278
-
-ولو Article امتدت من Page 127 إلى Page 128:
-
-Page 127
-Article 277
-   ↓
-body
-   ↓
-body
-   ↓
-END PAGE
-   │
-   │  ← لا تقفل
-   ↓
-Page 128
-body
-   ↓
-body
-   ↓
-Article 278
-   ↓
-FINALIZE 277
-OPEN 278
-
-إذن الـstate tracker هنا هو اللي يحوّل الـPDF من مجرد مجموعة سطور منفصلة إلى Articles كاملة، مع الحفاظ على الـArticle عبر الصفحات، ومنع الـcross-references من تقطيع الـArticles بشكل خاطئ.
-"""
+# الفكرة كلها أن الـPDF مش بيقول لنا صراحة:
+#
+# "السطور دي كلها Article 277"
+#
+# إحنا لازم نستنتج ده من الـheaders، ونحافظ على حالة الـArticle الحالية أثناء المرور على كل الصفحات.
+#
+# 1. الفكرة العامة
+#
+# عندنا سطور بالشكل:
+#
+# Page 10:
+# مادة (54)
+# يلتزم الطرف الأول...
+# ويجب عليه...
+#
+# Page 11:
+# ولا يجوز له...
+# مادة (55)
+# يجوز للطرف الثاني...
+#
+# الـfunction تمشي عليهم بالترتيب، وتستخدم state:
+#
+# current_number
+# current_entries
+# current_start_page
+#
+# يعني دائمًا عندها سؤال:
+#
+# أنا حاليًا بجمع أي Article؟
+#
+# مثلاً:
+#
+# current_number = 54
+#
+# معناه:
+#
+# أنا حاليًا داخل Article 54.
+#
+# 2. بداية الـfunction
+# def _collect_articles(pages_lines, is_english):
+#
+# بتستقبل:
+#
+# pages_lines
+#
+# قائمة الصفحات، وكل صفحة فيها رقم الصفحة والسطور:
+#
+# [
+#     (1, ["مادة (1)", "النص...", "..."]),
+#     (2, ["تكملة النص...", "مادة (2)", "..."]),
+# ]
+# is_english
+#
+# يحدد إحنا بنجمع:
+#
+# Arabic
+#
+# ولا:
+#
+# English
+#
+# لأن الـheader detector مختلف.
+#
+# 3. collected
+# collected = {}
+#
+# دي النتيجة النهائية.
+#
+# هتكون تقريبًا:
+#
+# {
+#     54: (entries, 10),
+#     55: (entries, 11),
+#     56: (entries, 12)
+# }
+#
+# يعني:
+#
+# Article 54
+#     ↓
+# entries الخاصة بيه
+#     ↓
+# بدأ في page 10
+# 4. rejected
+# rejected = []
+#
+# دي للـdiagnostics.
+#
+# لو قابلنا مثلًا:
+#
+# Article 901 has been delivered to him.
+#
+# لكن إحنا حاليًا في:
+#
+# Article 884
+#
+# فممكن الرقم 901 يكون cross-reference مش Header حقيقي.
+#
+# الكود يحتفظ بالسطر ويسجله في:
+#
+# rejected
+#
+# علشان نقدر نراجعه بعدين.
+#
+# 5. الـState
+#
+# عندنا:
+#
+# current_number = None
+#
+# في البداية:
+#
+# مفيش Article مفتوحة.
+#
+# ثم:
+#
+# current_entries = []
+#
+# دي هتحتوي body الخاص بالـArticle الحالية.
+#
+# و:
+#
+# current_start_page = 0
+#
+# صفحة بداية الـArticle.
+#
+# 6. المرور على الصفحات
+# for page_number, lines in pages_lines:
+#
+# يعني:
+#
+# هات كل صفحة بالترتيب.
+#
+# مثلاً:
+#
+# page_number = 127
+# lines = [...]
+#
+# وبعدها:
+#
+# for index, line in enumerate(lines):
+#
+# يمشي على كل line.
+#
+# index مهم جدًا بعدين في الـEnglish lookahead.
+#
+# 7. الـblank line
+# if line == "":
+#     if current_number is not None:
+#         current_entries.append((page_number, line))
+#     continue
+#
+# لو السطر فاضي:
+#
+# ""
+#
+# مش معناها إن الـArticle انتهت.
+#
+# دي ممكن تكون مجرد paragraph separator.
+#
+# فلو إحنا داخل:
+#
+# current_number = 277
+#
+# نضيف الـblank line للـentries:
+#
+# current_entries.append((page_number, ""))
+#
+# ثم:
+#
+# continue
+#
+# يعني:
+#
+# خلصنا التعامل مع السطر ده، روح للسطر اللي بعده.
+#
+# 8. Detect الـHeader
+#
+# هنا بيحدد هل السطر Header أم لا.
+#
+# rest_of_line = ""
+#
+# دي مهمة للـEnglish.
+#
+# لأن ممكن يكون:
+#
+# Article 277 If the option belongs to the debtor...
+# لو English
+# if is_english:
+#     header_number = detect_english_article_header(line)
+#
+# أولًا يجرب الـnormal detector.
+#
+# لو لم يجد:
+#
+# if header_number is None:
+#
+# يجرب:
+#
+# header_number, rest_of_line = split_english_inline_header(line)
+#
+# فتتحول:
+#
+# Article 277 If the option belongs to the debtor...
+#
+# إلى:
+#
+# header_number = 277
+# rest_of_line = "If the option belongs to the debtor..."
+# 9. لو Arabic
+# else:
+#     header_number = detect_article_header(line)
+#
+# مثلاً:
+#
+# مادة (54)
+#
+# ترجع:
+#
+# header_number = 54
+#
+# ولو:
+#
+# ويجب على الطرف الأول...
+#
+# ترجع:
+#
+# header_number = None
+# 10. أهم جزء: الـMonotonic Guard
+#
+# بعد ما نعرف رقم الـheader:
+#
+# if header_number is not None:
+#
+# نسأل:
+#
+# هل الرقم الجديد أكبر من الـArticle الحالية؟
+#
+# if current_number is None or header_number > current_number:
+#
+# مثلاً:
+#
+# current_number = 54
+# header_number = 55
+#
+# ده منطقي:
+#
+# 54 → 55
+#
+# إذن:
+#
+# Header حقيقي غالبًا.
+#
+# لكن:
+#
+# current_number = 54
+# header_number = 40
+#
+# ده رجوع للخلف:
+#
+# 54 → 40
+#
+# غالبًا مش Article جديدة، وإنما cross-reference.
+#
+# 11. ليه الـMonotonic Guard مهم؟
+#
+# تخيل:
+#
+# مادة (54)
+# النص...
+# Article 20 mentioned in this provision.
+# النص...
+# مادة (55)
+#
+# لو parser اعتبر:
+#
+# Article 20
+#
+# Header حقيقي، هيعمل:
+#
+# 54 → 20
+#
+# وهيبوظ الـstate.
+#
+# عشان كده:
+#
+# header_number > current_number
+#
+# شرط أساسي.
+#
+# 12. لكن الـEnglish عنده مشكلة إضافية
+#
+# هنا الجزء المعقد:
+#
+# if is_english and current_number is not None:
+#
+# ليه؟
+#
+# لأن الـEnglish ممكن يكون فيه:
+#
+# Article 901 has been delivered to him.
+#
+# داخل Article 884.
+#
+# وفي نفس الصفحة بعده:
+#
+# Article 885
+#
+# لو اعتبرنا 901 Header:
+#
+# 884 → 901
+#
+# هنقفز فوق:
+#
+# 885
+# 886
+# 887
+# ...
+# 900
+#
+# وده خطأ كبير.
+#
+# 13. الـLookahead
+#
+# الكود يبص لقدام:
+#
+# for later_line in lines[index + 1 :]:
+#
+# يعني:
+#
+# بص على السطور اللي بعد السطر الحالي في نفس الصفحة.
+#
+# مثلاً إحنا عند:
+#
+# Article 901 has been delivered...
+#
+# والـcurrent:
+#
+# 884
+#
+# بعده موجود:
+#
+# Article 885
+#
+# فيحسب:
+#
+# later_number = 885
+#
+# ثم:
+#
+# current_number < later_number < header_number
+#
+# يعني:
+#
+# 884 < 885 < 901
+#
+# صحيح.
+#
+# إذن:
+#
+# smaller_follows = True
+# 14. النتيجة
+#
+# لو:
+#
+# smaller_follows:
+#
+# نعمل:
+#
+# header_number = None
+#
+# يعني:
+#
+# اعتبر Article 901 مش Header.
+#
+# بل body text.
+#
+# وبالتالي السطر:
+#
+# Article 901 has been delivered to him.
+#
+# يدخل في:
+#
+# current_entries
+#
+# بدل ما يفتح Article 901.
+#
+# ثم بعده:
+#
+# Article 885
+#
+# يُعتبر Header حقيقي.
+#
+# فتبقى السلسلة:
+#
+# 884
+#  ↓
+# 885
+#
+# وليس:
+#
+# 884
+#  ↓
+# 901 ❌
+# 15. لو Header حقيقي، نعمل إيه؟
+#
+# لو الرقم valid:
+#
+# 54 → 55
+#
+# أول حاجة:
+#
+# if current_number is not None:
+#     collected[current_number] = (
+#         current_entries,
+#         current_start_page
+#     )
+#
+# يعني:
+#
+# اقفل الـArticle القديمة واحفظها.
+#
+# مثلاً:
+#
+# current_number = 54
+#
+# فتتحفظ:
+#
+# collected[54] = (
+#     current_entries,
+#     10
+# )
+# 16. افتح Article جديدة
+#
+# بعد كده:
+#
+# current_number = header_number
+#
+# مثلاً:
+#
+# current_number = 55
+#
+# ثم:
+#
+# current_entries = []
+#
+# يعني:
+#
+# ابدأ body جديدة من الصفر.
+#
+# ثم:
+#
+# current_start_page = page_number
+#
+# يعني:
+#
+# Article 55 بدأت في الصفحة الحالية.
+#
+# 17. لو الـHeader والـBody في نفس السطر
+#
+# دي نقطة مهمة جدًا للـEnglish.
+#
+# لو السطر:
+#
+# Article 277 If the option belongs to the debtor...
+#
+# فالـsplit أعطانا:
+#
+# header_number = 277
+# rest_of_line = "If the option belongs to the debtor..."
+#
+# بعد فتح Article 277:
+#
+# if rest_of_line.strip() != "":
+#     current_entries.append(
+#         (page_number, rest_of_line)
+#     )
+#
+# فتصبح:
+#
+# Article 277
+#     ↓
+# If the option belongs to the debtor...
+#
+# يعني الـheader نفسه لا يدخل الـbody، لكن الجزء الذي بعده يدخل.
+#
+# 18. ليه continue؟
+# continue
+#
+# مهمة جدًا.
+#
+# لأننا بعد ما اكتشفنا Header وعالجناه، مش عايزين السطر كله يتضاف مرة ثانية كـbody.
+#
+# بدون continue ممكن يحصل:
+#
+# Article 277
+# Article 277 If the option...
+#
+# داخل الـentries.
+#
+# لكن continue تقول:
+#
+# خلاص، عالجنا السطر كـHeader، روح للسطر التالي.
+#
+# 19. لو الرقم Backward أو Repeated
+#
+# الجزء:
+#
+# elif current_number is None or header_number <= current_number:
+#
+# مثلاً:
+#
+# current_number = 277
+# header_number = 100
+#
+# أو:
+#
+# current_number = 277
+# header_number = 277
+#
+# هنا مش هنفتح Article جديدة.
+#
+# بل:
+#
+# rejected.append((page_number, line))
+#
+# نسجلها كـdiagnostic.
+#
+# لكن لاحظ النقطة المهمة جدًا: السطر مش بيضيع.
+#
+# بعد الـif/elif، الكود يوصل إلى:
+#
+# if current_number is not None:
+#     current_entries.append((page_number, line))
+#
+# فيضيف السطر نفسه إلى الـbody.
+#
+# إذن:
+#
+# Article 277
+#     ↓
+# "Article 100 is also mentioned..."
+#
+# يبقى داخل Article 277.
+#
+# وده بالضبط معنى التعليق:
+#
+# never lost, never allowed to split an article incorrectly
+#
+# 20. النص العادي
+#
+# لو السطر مش Header أصلاً:
+#
+# The debtor shall...
+#
+# فيوصل إلى:
+#
+# if current_number is not None:
+#     current_entries.append((page_number, line))
+#
+# فيضاف للـArticle الحالية.
+#
+# مثلاً:
+#
+# Article 277
+#     ↓
+# If the option belongs...
+#     ↓
+# The debtor shall...
+#     ↓
+# The creditor may...
+#
+# كلهم في:
+#
+# current_entries
+# 21. أهم نقطة: نهاية الصفحة لا تقفل الـArticle
+#
+# ودي من أهم أفكار الكود.
+#
+# افترض:
+#
+# Page 127
+# Article 277
+# If the option belongs...
+# The debtor may...
+#
+# انتهت الصفحة.
+#
+# هل نعمل:
+#
+# current_number = None
+#
+# لا.
+#
+# نفضل:
+#
+# current_number = 277
+#
+# ثم الصفحة التالية:
+#
+# Page 128
+# ...
+# The creditor may...
+# The obligation ends...
+# Article 278
+#
+# فالـ... في Page 128 تضاف إلى:
+#
+# Article 277
+#
+# إلى أن يظهر:
+#
+# Article 278
+#
+# وقتها فقط:
+#
+# 277 → finalize
+# 278 → open
+#
+# وده اللي يسمح بإعادة بناء Article ممتدة على أكثر من صفحة.
+#
+# 22. نهاية الـDocument
+#
+# في النهاية:
+#
+# if current_number is not None:
+#     collected[current_number] = (
+#         current_entries,
+#         current_start_page
+#     )
+#
+# ليه؟
+#
+# لأن آخر Article في الملف مفيش Header بعدها يخبرنا:
+#
+# اقفل الـArticle.
+#
+# مثلاً آخر الملف:
+#
+# Article 100
+# The debtor shall...
+# The creditor may...
+#
+# خلص الـPDF.
+#
+# لازم إحنا نقول:
+#
+# خلاص، Article 100 انتهت.
+#
+# فنعمل finalization يدوي.
+#
+# 23. وفي النهاية
+# return collected, rejected
+#
+# ترجع حاجتين:
+#
+# collected
+#
+# الـArticles اللي اتجمعت:
+#
+# {
+#     277: (entries, 127),
+#     278: (entries, 128),
+#     279: (entries, 128)
+# }
+# rejected
+#
+# الـheaders candidates اللي رفضناها:
+#
+# [
+#     (127, "Article 901 has been delivered to him."),
+#     ...
+# ]
+#
+# وده مفيد جدًا للـdiagnostics والتحقق من جودة extraction.
+#
+# الخلاصة الكبيرة
+#
+# فكر في الـfunction كأنها موظف ماسك ملف وبيحدد المادة الحالية:
+#
+#                 ┌──────────────────────┐
+#                 │ current_article      │
+#                 │      = 277           │
+#                 └──────────┬───────────┘
+#                            │
+#           ┌────────────────┼────────────────┐
+#           ↓                ↓                ↓
+#       body line        blank line       cross-reference
+#           │                │                │
+#           └────────────────┴────────────────┘
+#                            ↓
+#                     تضاف للـ277
+#
+# ولما يظهر:
+#
+# Article 278
+#
+# يعمل:
+#
+#         Article 277
+#              ↓
+#           FINALIZE
+#              ↓
+#         collected[277]
+#              ↓
+#         Article 278
+#              ↓
+#            OPEN
+#              ↓
+#       current_number = 278
+#
+# ولو Article امتدت من Page 127 إلى Page 128:
+#
+# Page 127
+# Article 277
+#    ↓
+# body
+#    ↓
+# body
+#    ↓
+# END PAGE
+#    │
+#    │  ← لا تقفل
+#    ↓
+# Page 128
+# body
+#    ↓
+# body
+#    ↓
+# Article 278
+#    ↓
+# FINALIZE 277
+# OPEN 278
+#
+# إذن الـstate tracker هنا هو اللي يحوّل الـPDF من مجرد مجموعة سطور منفصلة إلى Articles كاملة، مع الحفاظ على الـArticle عبر الصفحات، ومنع الـcross-references من تقطيع الـArticles بشكل خاطئ.
 def _collect_articles(pages_lines, is_english):
     """Track one language's articles across every page.
 
@@ -1500,8 +1483,13 @@ def _collect_articles(pages_lines, is_english):
                         for later_line in lines[index + 1 :]:
                             later_number = detect_english_article_header(later_line)
                             if later_number is None:
-                                later_number, _ = split_english_inline_header(later_line)
-                            if later_number is not None and current_number < later_number < header_number:
+                                later_number, _ = split_english_inline_header(
+                                    later_line
+                                )
+                            if (
+                                later_number is not None
+                                and current_number < later_number < header_number
+                            ):
                                 smaller_follows = True
                                 break
                         if smaller_follows:
@@ -1510,7 +1498,10 @@ def _collect_articles(pages_lines, is_english):
                         else:
                             # Finalize the previous article (if one is open).
                             if current_number is not None:
-                                collected[current_number] = (current_entries, current_start_page)
+                                collected[current_number] = (
+                                    current_entries,
+                                    current_start_page,
+                                )
                             # Open the new article with a clean state.
                             current_number = header_number
                             current_entries = []
@@ -1522,7 +1513,10 @@ def _collect_articles(pages_lines, is_english):
                     else:
                         # Finalize the previous article (if one is open).
                         if current_number is not None:
-                            collected[current_number] = (current_entries, current_start_page)
+                            collected[current_number] = (
+                                current_entries,
+                                current_start_page,
+                            )
                         # Open the new article with a clean state.
                         current_number = header_number
                         current_entries = []
@@ -1746,7 +1740,7 @@ def extract_articles(document):
 
                 # Proof 2: the next header on the SAME page must be
                 # the expected number (602 right after the misprint).
-                for next_line in lines[index + 1:]:
+                for next_line in lines[index + 1 :]:
                     next_number = detect_article_header(next_line)
                     if next_number is None:
                         continue
@@ -1819,7 +1813,10 @@ def _repair_transposed_header(
         # comparing the numbers, not by taking the last match in the
         # list. Otherwise the wrong article (e.g. 417) would be cut.
         if record["article_number"] < real_number:
-            if previous is None or record["article_number"] > previous["article_number"]:
+            if (
+                previous is None
+                or record["article_number"] > previous["article_number"]
+            ):
                 previous = record
     # Nothing to do when the record is missing or already has Arabic.
     if target is None or target["text"]["ar"].strip() != "":
@@ -1845,7 +1842,7 @@ def _repair_transposed_header(
             block = []
             start_page = page_number
             end_page = page_number
-            for next_line in lines[index + 1:]:
+            for next_line in lines[index + 1 :]:
                 if detect_article_header(next_line) is not None:
                     break  # The next real article begins here.
                 if next_line.strip() == "":
@@ -1906,4 +1903,3 @@ def _find_repeal_note(lines, range_start, range_end):
 
     # Join the note lines with a space, in reading order.
     return " ".join(note_lines)
-
