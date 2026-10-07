@@ -40,6 +40,20 @@ indexing = [
     "langchain-text-splitters>=1.1.2",
 ]
 
+# Serving layer (service/ + locustfile.py).
+# ضفناها هنا مش في الـcore عشان الـCI و DVC pipeline مش محتاجينها،
+# والتوجّه زي مجموعات `dvc` و`experiments` و`indexing` الموجودة أصلًا.
+# التنصيب:
+#     uv sync --extra serving
+#
+# openai متكرّرة عشان llm_client.py بيستورد منها مباشرة (AsyncOpenAI).
+# bentoml / locust مش مكنينين لسه في البيئة الحالية.
+serving = [
+    "openai>=3.0.0",
+    "bentoml>=1.3.0",
+    "locust>=2.31.0",
+]
+
 dvc = [
     "dvc[s3]>=3.67.1",
 ]
@@ -53,4 +67,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+# "." (جذر المشروع) ضروري عشان الاختبارات تقدر تلاقي حزمة service/
+# اللي chain.py بيستوردها في build_rag_chain().
+pythonpath = ["src", "."]

@@ -95,11 +95,20 @@ def create_rag_chain(retriever, prompt, llm):
 # internals. Imports are done inside the function so importing
 # this module (e.g. for tests of format_docs) stays lightweight.
 # ==========================================================
-def build_rag_chain():
-    """Build the full RAG chain from configs/config.yaml."""
+def build_rag_components():
+    """ابني الـretriever الموجود ونرجّعه مع الـprompt.
+
+    دي النسخة "المكوّنة" من build_rag_chain(): نفس الـwiring بالظبط
+    (embedding model -> Chroma -> retriever) بس من غير LLM.
+
+    محتاجينها للـstreaming endpoint في bentoml_service: هناك الـprompt
+    بيتبني عادي، بس الرد لازم يرجع token-by-token من vLLM مش كنص واحدة.
+
+    الخطوة الوحيدة الناقصة عندها هي الخطوة اللي قبل الـLLM،
+    يعني مفيش تكرار لـretrieval ولا إعادة بناء لـindex.
+    """
     # Imported here to keep module import cheap and side-effect free.
     from rag_project.indexing import embeddings, vector_store
-    from rag_project.generation import llm as llm_module
     from rag_project.retrieval import retriever as retriever_module
 
     # Embedding model (same one that built the index).
@@ -108,8 +117,54 @@ def build_rag_chain():
     vector_database = vector_store.load_vector_store(embedding_model)
     # Retriever with the configured search type and top_k.
     retriever = retriever_module.create_retriever(vector_database)
-    # LLM with the configured model and temperature.
-    llm = llm_module.create_llm()
+
+    return retriever, prompt
+
+
+def build_rag_chain():
+    """Build the full RAG chain from configs/config.yaml."""
+    # Same retrieval wiring as the streaming path (single source of truth).
+    retriever, prompt_template = build_rag_components()
+
+    # ----------------------------------------------------------
+    # LLM = remote vLLM (بدل Gemini).
+    # ده الاستبدال الوحيد في الـpipeline:
+    #   * الـretriever زي ما هو،
+    #   * format_docs() زي ما هو،
+    #   * الـexisting prompt (generation/prompts.py) زي ما هو،
+    #   * المغيّر بس هو الموديل اللي بيولّد الإجابة.
+    #
+    # service/llm_client هو الـintegration point: بيستلم الـPromptValue
+    # النهائي من الـprompt ويبعته زي ما هو للـvLLM (OpenAI-compatible).
+    # الإعدادات (VLLM_BASE_URL / VLLM_MODEL / VLLM_API_KEY) جاية من .env،
+    # ومفيش أي URL أو API key أو model name hardcoded هنا.
+    #
+    # ملاحظة: generation/llm.py (Gemini) ما اتحذفش - لسه مستخدم كـ
+    # Faithfulness judge في evaluation/faithfulness.py.
+    # ----------------------------------------------------------
+    llm = _create_vllm_llm()
 
     # The chain itself (context + question -> prompt -> LLM -> string).
-    return create_rag_chain(retriever, prompt, llm)
+    return create_rag_chain(retriever, prompt_template, llm)
+
+
+def _create_vllm_llm():
+    """نجيب الـvLLM adapter من service/llm_client.
+
+    الاستيراد متعمّد جوّا الدالة (زي باقي استيرادات build_rag_chain)
+    عشان استيراد chain.py يفضل خفيف، وعشان ندي error واضح لو مجلد
+    service/ مش موجود.
+    """
+    try:
+        # service/ موجود في الـproject root مش جوّا src/، فهو مش داخل
+        # packages بتاعة pyproject. ده شغّال عادي طول ما اشتغلت من جذر
+        # المشروع (bentoml serve / python من الـproject root).
+        from service.llm_client import build_vllm_llm
+    except ModuleNotFoundError as error:
+        raise ModuleNotFoundError(
+            "مقدرناش نلاقي حزمة service. شغّل الأمر من جذر المشروع "
+            "(اللي فيه ملف service/) وتأكد إن المجلد موجود."
+        ) from error
+
+    # RunnableLambda: (PromptValue -> str) جوّا الـLCEL chain.
+    return build_vllm_llm()

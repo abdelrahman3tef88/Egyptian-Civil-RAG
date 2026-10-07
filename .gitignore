@@ -14,6 +14,13 @@ env/
 # Environment variables
 .env
 
+# Serving layer: temporary development logs (service/ writes here)
+logs/
+
+# BentoML local build output
+.bento/
+bentofile.yaml
+
 # Editors / IDE
 .vscode/
 .idea/
@@ -55,5 +62,12 @@ reports/mlflow/evaluation_results/*
 !reports/mlflow/evaluation_results/.gitkeep
 reports/mlflow/artifacts/*
 !reports/mlflow/artifacts/.gitkeep
+
+# Future performance reports (Locust HTML + streaming metrics).
+# هيتعملوا وقت التشغيل بس، مش بيت-committen.
+reports/locust/*
+!reports/locust/.gitkeep
+reports/streaming/*
+!reports/streaming/.gitkeep
 
 .dvc/config.local
