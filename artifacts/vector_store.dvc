@@ -1,0 +1,6 @@
+outs:
+- md5: 8d5cdc42af2b5ce34fc8901f0226a0ca.dir
+  size: 126171224
+  nfiles: 10
+  hash: md5
+  path: vector_store

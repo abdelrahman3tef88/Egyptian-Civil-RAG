@@ -1,11 +1,119 @@
+# Combined Docker Compose for Egyptian Civil Code RAG Stack
+# ----------------------------------------------------------
+# Runs:
+#   - FastAPI Gateway      -> port 8000  (HTTP API, /metrics)
+#   - BentoML RAG Service  -> port 3000  (RAG inference, /metrics on 9001)
+#   - Prometheus           -> port 9090  (metrics scraping)
+#   - Grafana              -> port 3001  (dashboards)
+#
+# The remote vLLM server MUST be running separately on a GPU host
+# and reachable at VLLM_BASE_URL (configured via .env).
+#
+# Start (from repository root):
+#   docker compose up --build -d
+#
+# URLs:
+#   FastAPI API:     http://localhost:8000
+#   FastAPI Health:  http://localhost:8000/health
+#   FastAPI Metrics: http://localhost:8000/metrics
+#   BentoML Health:  http://localhost:3000/health
+#   BentoML Metrics: http://localhost:9001/metrics
+#   Prometheus:      http://localhost:9090
+#   Grafana:         http://localhost:3001  (admin / admin - change via .env)
+#
+# Note: host.docker.internal reaches the host from containers on
+# Docker Desktop (Windows/macOS). On Linux, extra_hosts maps it to host-gateway.
+
 services:
-  rag-api:
+  # ----------------------------------------------------------
+  # FastAPI Gateway - HTTP API entry point
+  # ----------------------------------------------------------
+  fastapi-gateway:
     build:
       context: .
       dockerfile: Dockerfile
-
+    command: ["uvicorn", "rag_project.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
     ports:
       - "8000:8000"
-
     env_file:
       - .env
+    environment:
+      - BENTOML_BASE_URL=http://bentoml-service:3000
+      - BENTOML_TIMEOUT=300
+    depends_on:
+      - bentoml-service
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # BentoML RAG Service - Owns RAG inference
+  # ----------------------------------------------------------
+  bentoml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Default CMD in Dockerfile runs bentoml serve on port 3000
+    ports:
+      - "3000:3000"      # BentoML HTTP API
+      - "9001:9001"      # Prometheus metrics (BENTOML_METRICS_PORT)
+    env_file:
+      - .env
+    environment:
+      - BENTOML_METRICS_PORT=9001
+    volumes:
+      # Mount artifacts for Chroma vector store (read-only)
+      - ./artifacts:/app/artifacts:ro
+      # Mount data for reference questions (read-only)
+      - ./data:/app/data:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0
+              capabilities: [gpu]
+
+  # ----------------------------------------------------------
+  # Prometheus - Metrics collection
+  # ----------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: rag-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      # Compose-specific targets (service names on the shared network).
+      # deployment/prometheus.yml is the HOST-side variant and is used by
+      # monitoring/deployment/docker-compose.yml instead.
+      - ./monitoring/deployment/prometheus.compose.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ----------------------------------------------------------
+  # Grafana - Visualization
+  # ----------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: rag-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/deployment/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/deployment/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus-data:
+  grafana-data:

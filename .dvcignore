@@ -1,3 +1,9 @@
 # Add patterns of files dvc should ignore, which could improve
 # the performance. Learn more at
 # https://dvc.org/doc/user-guide/dvcignore
+
+# Local scratch/backup folders used during store-unification verification.
+# They hold byte-identical copies of dvc.yaml/dvc.lock that must NOT be
+# discovered as stray pipelines by `dvc status` / `dvc dag`.
+/_dvcprobe/
+/artifacts/dvc_config_backup_preunify_20261009/

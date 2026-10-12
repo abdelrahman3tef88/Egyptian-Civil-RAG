@@ -97,3 +97,16 @@ tests/test_evaluation_contexts.py
 tests/test_evaluation_contexts.py.backup
 tests/test_language_isolation.py
 tests/test_run_ragas_v2.py
+
+# Local experiment backups
+data/final_questions RAGAS/final_ragas_questions.json.backup
+
+# Local RAGAS experiment outputs
+/reports/mlflow/best_config(chunking & Embedding).json
+/reports/mlflow/final_ragas EXP 2 BEST/final_ragas_results.json
+/reports/mlflow/final_ragas EXP 2 BEST/generated_records.json
+/reports/mlflow/final_ragas EXP 2 BEST/implementation_report.md
+/data/final_questions RAGAS/final_ragas_questions.json
+
+# Local MLflow experiment outputs
+/reports/mlflow/

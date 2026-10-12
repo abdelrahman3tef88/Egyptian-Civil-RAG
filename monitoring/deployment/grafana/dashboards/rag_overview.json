@@ -1,0 +1,191 @@
+{
+  "uid": "rag-overview",
+  "title": "Egyptian Civil Code RAG",
+  "tags": ["rag", "prometheus"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Request rate (req/s) by service & status",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (service, status) (rate(rag_requests_total[5m]))",
+          "legendFormat": "{{service}} / {{status}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Request failures (errors + blocks)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (service, error_type) (rate(rag_request_errors_total[5m]))",
+          "legendFormat": "{{service}} {{error_type}}"
+        },
+        {
+          "expr": "sum by (service, status) (rate(rag_requests_total{status=~\"error|blocked|invalid\"}[5m]))",
+          "legendFormat": "{{service}} {{status}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Latency percentiles (p50 / p95 / p99)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, service) (rate(rag_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{service}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(rag_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{service}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, service) (rate(rag_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99 {{service}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Token usage (exact from vLLM usage metadata)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(rag_input_tokens_total[5m]))",
+          "legendFormat": "input {{model}}"
+        },
+        {
+          "expr": "sum by (model) (rate(rag_output_tokens_total[5m]))",
+          "legendFormat": "output {{model}}"
+        },
+        {
+          "expr": "sum by (model, direction) (rate(rag_token_estimates_total[5m]))",
+          "legendFormat": "ESTIMATE {{direction}} {{model}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "tps" }, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Embedding drift events & latest similarity",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (service) (rate(rag_embedding_drift_total[5m]))",
+          "legendFormat": "drift events {{service}}"
+        },
+        {
+          "expr": "rag_embedding_similarity",
+          "legendFormat": "latest max similarity {{service}}"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Guardrail actions (allow / mask / block)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (service, stage, action) (rate(rag_guardrail_actions_total[5m]))",
+          "legendFormat": "{{service}} {{stage}} {{action}}"
+        },
+        {
+          "expr": "sum by (service, stage) (rate(rag_guardrail_blocked_total[5m]))",
+          "legendFormat": "BLOCKED {{service}} {{stage}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Embedding drift DETECTOR failures (broken detector, not drift)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (service, error_type) (rate(rag_embedding_drift_errors_total[5m]))",
+          "legendFormat": "{{service}} {{error_type}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "description": "A non-zero value means the drift detector could not score queries (e.g. the baseline is missing). It is NOT drift: drift events are the series above."
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "RAGAS faithfulness score & evaluation failures",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rag_ragas_faithfulness",
+          "legendFormat": "faithfulness {{service}}"
+        },
+        {
+          "expr": "sum by (service, status) (rate(rag_ragas_evaluations_total[5m]))",
+          "legendFormat": "evals {{service}} {{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "min": 0, "max": 1 },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Total requests (all time)",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rag_requests_total)",
+          "legendFormat": "requests"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Estimated cost (only when pricing is configured)",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rag_estimated_cost_usd_total or vector(0)",
+          "legendFormat": "USD"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD", "decimals": 4 },
+        "overrides": []
+      }
+    }
+  ]
+}

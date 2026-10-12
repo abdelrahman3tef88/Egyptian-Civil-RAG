@@ -317,7 +317,9 @@ def _ragas_faithfulness(question, answer, contexts, llm):
             from ragas.llms import LangchainLLMWrapper
             from ragas.metrics import Faithfulness
 
-        scorer = _ragas_scorer(llm, Faithfulness, LangchainLLMWrapper)
+        scorer = _ragas_scorer(
+            llm, Faithfulness, lambda llm: LangchainLLMWrapper(llm, bypass_n=True)
+        )
         sample = SingleTurnSample(
             user_input=question,
             response=answer,

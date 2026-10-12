@@ -1,0 +1,45 @@
+# ==============================================================
+# Prometheus configuration for the COMBINED docker-compose.yml
+# --------------------------------------------------------------
+# The applications are services on the SAME Compose network, so
+# Prometheus scrapes them by their Compose service name directly.
+# It does NOT go through host.docker.internal: doing so would require
+# the app ports to stay published to the host and would depend on
+# hairpin NAT, so metrics would silently stop if the port mappings
+# were removed.
+#
+# This file exists alongside deployment/prometheus.yml, which stays
+# unchanged for the HOST-side stack
+# (docker-compose.yml -f monitoring/deployment/docker-compose.yml),
+# where the apps really do run on the host.
+#
+# Targets:
+#   * FastAPI gateway  -> fastapi-gateway:8000/metrics
+#     (requests, input guardrails, errors, gateway latency)
+#   * BentoML service  -> bentoml-service:9001/metrics
+#     (tokens, drift, output guardrail, RAGAS; BENTOML_METRICS_PORT)
+# ==============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: rag-fastapi-gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["fastapi-gateway:8000"]
+        labels:
+          service: fastapi-gateway
+
+  - job_name: rag-bentoml-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["bentoml-service:9001"]
+        labels:
+          service: bentoml
+
+  # Built-in Prometheus self-monitoring.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

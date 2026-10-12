@@ -1,5 +1,20 @@
+# ==========================================================
+# Docker build-context exclusions
+# ----------------------------------------------------------
+# The image only needs what the Dockerfile COPYs:
+#   pyproject.toml, uv.lock, configs/, src/, service/,
+#   guardrails/, monitoring/, observability/,
+#   data/processed/, artifacts/vector_store/
+# Everything else below is dev/experiment state that only bloats
+# the context tarball (913 MB -> ~125 MB) and slows every build.
+# ==========================================================
+
+# --- Version control / CI ---
 .git
 .github
+.pre-commit-config.yaml
+
+# --- Python environments and caches ---
 .venv
 venv
 env
@@ -7,18 +22,80 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+*.egg-info
 .pytest_cache
+.ruff_cache
 .coverage
 htmlcov
 .ipynb_checkpoints
 notebooks
+
+# --- Tests and dev scripts (not part of the serving image) ---
 tests
 scripts
+utils
+
+# --- Secrets: never enter the build context ---
 .env
 *.env
 .vscode
 .idea
+
+# --- Large source datasets not used by the serving path ---
 *.pdf
 data/raw
+data/test reindex
+data/final_questions RAGAS
+data/golden_QUS (Chunk & Embed) EXP
 Standard_RAG(_Q&A_Courses)(2).ipynb
 README_D1.md
+
+# --- Build artifacts: keep ONLY the live Chroma index ---
+# (config.yaml vector_db.persist_directory = artifacts/vector_store)
+artifacts/experiment_indexes
+artifacts/vector_store_ACTIVE_*
+artifacts/vector_store_backup_*
+artifacts/vector_store_contaminated_backup
+artifacts/dvc_config_backup_*
+artifacts/pilot_*
+
+# --- DVC / MLflow / experiment state (not COPYed, may hold credentials) ---
+.dvc
+mlruns
+mlflow.db
+mlflow_ragas.db
+experiment_results
+experiments
+evaluation
+_ragas_debug
+
+# --- Runtime-written output dirs ---
+logs
+reports
+
+# --- Root-level scratch, debug and audit files ---
+*.txt
+*.db
+debug_*.py
+check_*.py
+inspect_*.py
+verify_*.py
+test_*.py
+run_*.py
+eval_*.py
+find_*.py
+fix_*.py
+remove_*.py
+save_*.py
+post_*.py
+compare_*.py
+extract_*.py
+seg_*.py
+full_audit*.py
+final_*.py
+controlled_*.py
+_articles_*.json
+_gt_*.json
+_gt_*.json
+remaining_results.json
+duplicate_analysis.json

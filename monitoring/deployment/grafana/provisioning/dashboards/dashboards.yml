@@ -1,0 +1,14 @@
+# Load every JSON file in monitoring/deployment/grafana/dashboards/
+# as a provisioned (read-only by default) Grafana dashboard.
+apiVersion: 1
+
+providers:
+  - name: rag-dashboards
+    orgId: 1
+    folder: RAG
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

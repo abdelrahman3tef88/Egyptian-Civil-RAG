@@ -54,6 +54,53 @@ generation:
   judge_temperature: 0
 
 # --------------------------
+# Remote vLLM generation server (replaces Gemini in the serving path)
+# ----------------------------------------------------------
+vllm:
+  base_url: http://127.0.0.1:8000/v1
+  model: Qwen/Qwen3-8B-AWQ
+  api_key: ""
+  timeout_seconds: 300
+  max_tokens: 4096
+
+# --------------------------
+# Faithfulness evaluation backend (RAGAS)
+# ----------------------------------------------------------
+# NOTE: `enabled` here only gates the ONLINE, per-request evaluation in
+# service/bentoml_service.py (LLM-as-judge on every /ask_json call - it
+# adds latency and judge cost). It defaults to OFF; opt in with
+# ONLINE_EVAL_ENABLED=1. The offline MLflow experiment has its own switch
+# in experiments/mlflow/experiment_config.yaml and is unaffected.
+evaluation:
+  backend: ragas
+  enabled: false
+  gemini_evaluator_model: ""
+
+# --------------------------
+# Embedding drift detection
+# ----------------------------------------------------------
+drift:
+  threshold: 0.45
+  reference_questions_path: data/reference_questions.json
+  baseline_cache_path: monitoring/baseline/reference_embeddings.json
+  model: BAAI/bge-m3
+  device: auto
+  reference_count: 50
+
+# --------------------------
+# Observability (Langfuse)
+# ----------------------------------------------------------
+langfuse:
+  host: https://cloud.langfuse.com
+  public_key: ""
+  secret_key: ""
+  release: ""
+  sample_rate: 1.0
+
+
+
+
+# --------------------------
 # Data paths
 # --------------------------
 data:

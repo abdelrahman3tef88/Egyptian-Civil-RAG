@@ -1,0 +1,45 @@
+# ==============================================================
+# Prometheus configuration for the HOST-side monitoring stack
+# --------------------------------------------------------------
+# Prometheus SCRAPES the applications' /metrics HTTP endpoints.
+# It does NOT read monitoring/metrics.py as a data file.
+#
+# Use this file when the applications run on the HOST (started with
+# `uv run`), together with:
+#   docker compose -f monitoring/deployment/docker-compose.yml up -d
+#
+# When the applications run as Compose services (the root
+# docker-compose.yml), use prometheus.compose.yml instead: same
+# metrics, but the targets are the Compose service names rather than
+# host.docker.internal, so scraping never depends on published ports.
+#
+# Targets (this file, host-side):
+#   * FastAPI gateway  -> host:8000/metrics  (requests, guardrails,
+#                         errors, latency recorded by the gateway)
+#   * BentoML service  -> host:9001/metrics  (tokens, drift, output
+#                         guardrail, RAGAS; BENTOML_METRICS_PORT)
+# ==============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: rag-fastapi-gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
+        labels:
+          service: fastapi-gateway
+
+  - job_name: rag-bentoml-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:9001"]
+        labels:
+          service: bentoml
+
+  # Built-in Prometheus self-monitoring.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

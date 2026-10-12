@@ -1,40 +1,19 @@
 schema: '2.0'
 stages:
   extract:
-    cmd: uv run python scripts\extract_data.py
+    cmd: uv run python scripts/extract_data.py
     deps:
     - path: data/raw/
       hash: md5
       md5: b8139b75963ff2e6387cc9c6b59cbbf2.dir
       size: 2599822
       nfiles: 3
-    - path: scripts\extract_data.py
+    - path: scripts/extract_data.py
       hash: md5
-      md5: 2cf25fe54ffdde8a0c4459e61e4ad87c
-      size: 20112
+      md5: 4270b2c80c606329dca87b90f25a6368
+      size: 20184
     outs:
     - path: data/processed/articles.json
       hash: md5
       md5: 800d7d024f853bc9874232eb786a925c
       size: 1131557
-  index:
-    cmd: uv run python scripts\build_index.py
-    deps:
-    - path: configs/config.yaml
-      hash: md5
-      md5: e17631c288bdafc360d3ffd6e8f6b7c6
-      size: 2022
-    - path: data/processed/articles.json
-      hash: md5
-      md5: 800d7d024f853bc9874232eb786a925c
-      size: 1131557
-    - path: scripts\build_index.py
-      hash: md5
-      md5: d8880cfbaf2be57aedf229bd6720f0bf
-      size: 1571
-    outs:
-    - path: artifacts/vector_store/
-      hash: md5
-      md5: fb878e9137a715c5ba71c996e9b6e74e.dir
-      size: 19163688
-      nfiles: 6
