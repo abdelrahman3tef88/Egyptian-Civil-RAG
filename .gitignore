@@ -90,7 +90,6 @@ scripts/artifacts/
 
 reports/locust/locust_report.html
 scripts/build_index_new.py
-scripts/run_smoke_test.py
 tests/test_article_labels_impact.py
 tests/test_docker_image_and_monitoring.py
 tests/test_evaluation_contexts.py
