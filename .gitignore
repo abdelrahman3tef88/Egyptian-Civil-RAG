@@ -57,3 +57,43 @@ reports/mlflow/artifacts/*
 !reports/mlflow/artifacts/.gitkeep
 
 .dvc/config.local
+
+
+# Local debugging and experiment artifacts
+_ragas_debug/
+experiment_results/
+logs/
+mlflow_ragas.db
+
+# Local artifact backups
+artifacts/*backup*/
+artifacts/*preunify*/
+artifacts/*prearticlelabel*/
+
+# Local test data
+data/reference_questions.json
+data/smoke_test_questions.json
+data/test reindex/
+
+# Temporary evaluation scripts and backups
+evaluation/run_pilot_ragas_12.py
+evaluation/run_ragas.py.backup
+evaluation/run_reranker_experiment.py
+
+# Generated local reports
+reports/embedding_drift_report.jsonl
+reports/smoke_test_report.json
+reports/mlflow/pilot_ragas_12/
+
+# Local script artifacts
+scripts/artifacts/
+
+reports/locust/locust_report.html
+scripts/build_index_new.py
+scripts/run_smoke_test.py
+tests/test_article_labels_impact.py
+tests/test_docker_image_and_monitoring.py
+tests/test_evaluation_contexts.py
+tests/test_evaluation_contexts.py.backup
+tests/test_language_isolation.py
+tests/test_run_ragas_v2.py
